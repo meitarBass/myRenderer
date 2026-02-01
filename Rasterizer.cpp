@@ -49,21 +49,20 @@ void drawTriangle(const Triangle &tri, std::vector<float>& zbuffer,
 
             // Compute z value in screen coordinates using the barycentric coords.
             float z = 0, intensityP = 0;
-            Vec2f uvAtPointP{0, 0};
             for (int i = 0; i < 3; i++) {
                 z += tri.pts[i].z() * bc_screen[i];
                 intensityP += intensity[i] * bc_screen[i];
-
-                uvAtPointP.x() += tri.uv[i].x() * bc_screen[i];
-                uvAtPointP.y() += tri.uv[i].y() * bc_screen[i];
             }
 
             intensityP = std::min(1.f, std::max(0.f, intensityP));
 
             if (zbuffer[x + y * image.width()] < z) {
                 // Get the texture
-                Vec2f texP = {uvAtPointP.x() * texture.width(), uvAtPointP.y() * texture.height()};
-                TGAColor color = texture.get(texP.x(), texP.y());
+
+                float currentInvW = tri.invW[0] * bc_screen[0] + tri.invW[1] * bc_screen[1] + tri.invW[2] * bc_screen[2];
+                Vec2f currentUVoverW = tri.uv[0] * bc_screen[0] + tri.uv[1] * bc_screen[1] + tri.uv[2] * bc_screen[2];
+                Vec2f finalUV = currentUVoverW / currentInvW;
+                TGAColor color = texture.get(finalUV.x() * texture.width(), finalUV.y() * texture.height());
 
                 TGAColor finalColor;
                 finalColor[0] = color[0] * intensityP; // Blue
@@ -145,35 +144,41 @@ void fillTriangle(const Triangle& tri, TGAImage &framebuffer, TGAColor color) {
 }
 
 void drawModel(const ModelLoader &model, TGAImage &framebuffer, const TGAImage& texture,
-               std::vector<float>& zbuffer, const Matrix4f4 &mat, Vec3f eye) {
+               std::vector<float>& zbuffer, const Matrix4f4 &totalMat, const Matrix4f4 &modelMat, Vec3f eye) {
     const auto &faces = model.getFaces();
+
     Vec3f lightDir = (eye - Vec3f(0, 0, 0)).normalize();
 
     for (const auto &face : faces) {
-        Point3 worldCoords[3], screenCoords[3];
+        float verticesIntensity[3], invW[3];
+        Point3 screenCoords[3], worldCoords[3];
         Vec2f uv[3];
-        float verticesIntensity[3];
 
         for (int i = 0; i < 3; i++) {
-            worldCoords[i] = face.pts[i];
-            uv[i] = face.uv[i];
-            Vec4f vTransformed = mat * Vec4f(worldCoords[i]);
+            Vec4f vWorld = modelMat * Vec4f(face.pts[i]);
+            worldCoords[i] = Vec3f(vWorld[0], vWorld[1], vWorld[2]);
+
+            Vec4f vNormal = modelMat * Vec4f(face.normals[i][0], face.normals[i][1], face.normals[i][2], 0.0f);
+            Vec3f nWorld = Vec3f(vNormal[0], vNormal[1], vNormal[2]).normalize();
+
+            Vec4f vScreen = totalMat * Vec4f(face.pts[i]);
+            invW[i] = 1.0f / vScreen.w();
+            uv[i] = face.uv[i] * invW[i];
 
             screenCoords[i] = Vec3f(
-                    vTransformed[0] / vTransformed[3],
-                    vTransformed[1] / vTransformed[3],
-                    vTransformed[2] / vTransformed[3]
+                    vScreen[0] * invW[i],
+                    vScreen[1] * invW[i],
+                    vScreen[2] * invW[i]
             );
 
-            Vec3f n = face.normals[i];
-            verticesIntensity[i] = std::max(0.f, dotProduct(n, lightDir));
+            verticesIntensity[i] = std::max(0.f, dotProduct(nWorld, lightDir));
         }
 
         Vec3f viewDir = (eye - worldCoords[0]).normalize();
         Vec3f nFace = cross(worldCoords[1] - worldCoords[0], worldCoords[2] - worldCoords[0]).normalize();
 
         if (dotProduct(nFace, viewDir) > 0) {
-            drawTriangle(Triangle(screenCoords, uv), zbuffer, framebuffer, texture ,verticesIntensity);
+            drawTriangle(Triangle(screenCoords, uv, invW), zbuffer, framebuffer, texture, verticesIntensity);
         }
     }
 }

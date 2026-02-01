@@ -1,36 +1,21 @@
 #include "Rasterizer.h"
+#include "Tests.h"
 
-#include <limits>
 
-int main(int argc, char **argv) {
-    constexpr float width = 800.0f;
-    constexpr float height = 800.0f;
+int main() {
+    RendererTests::runAll();
 
-    Vec3f eye(0, 0, 3);             // Where the viewer is
-    Vec3f center(0, 0, 0);           // Where the viewer is watching
-    Vec3f up(0, 1, 0);               // The new up
+    constexpr int width = 800;
+    constexpr int height = 800;
 
-    auto ModelView  = Matrix4f4::lookat(eye, center, up);
-    auto Projection = Matrix4f4::projection(7);
-    auto View       = Matrix4f4::viewport(width/8, height/8, width*3/4, height*3/4);
-    auto Shear = Matrix4f4::shear(0.1f, 0, 0, 0, 0, 0);
+    std::cout << "Loading model and texture..." << std::endl;
+    ModelLoader model("../Models/obj/african_head/african_head.obj");
+    TGAImage texture;
+    texture.read_tga_file("../Models/obj/african_head/african_head_diffuse.tga");
+    texture.flip_vertically();
 
-    auto mat = View * Projection * ModelView * Shear;
+    RendererTests::runVisualSuite(model, texture, width, height);
 
-    TGAImage framebuffer(width, height, TGAImage::RGB);
-    TGAImage textureFile;
-
-    textureFile.read_tga_file("../Models/obj/african_head/african_head_diffuse.tga");
-    textureFile.flip_vertically();
-
-    auto zbuffer = std::vector<float>(width * height);
-    for (int i = 0; i < width * height; i++) {
-        zbuffer[i] = -std::numeric_limits<float>::max();
-    }
-
-    ModelLoader mdl("../Models/obj/african_head/african_head.obj");
-    drawModel(mdl, framebuffer, textureFile, zbuffer, mat, eye);
-
-    framebuffer.write_tga_file("output.tga");
+    std::cout << "All processes completed successfully." << std::endl;
     return 0;
 }

@@ -15,7 +15,7 @@ void line(int ax, int ay, int bx, int by, TGAImage &framebuffer, TGAColor color)
 void fillTriangle(const Triangle& tri, TGAImage &framebuffer, TGAColor color);
 
 void drawModel(const ModelLoader &model, TGAImage &framebuffer, const TGAImage& texture,
-               std::vector<float>& zbuffer, const Matrix4f4 &mat, Vec3f eye);
+               std::vector<float>& zbuffer, const Matrix4f4 &totalMat, const Matrix4f4 &modelMat, Vec3f eye);
 
 inline void loadFaces(ModelLoader &model);
 

@@ -90,6 +90,15 @@ public:
         return res;
     }
 
+    Vec<T, n> operator/(T f) const {
+        Vec<T, n> res;
+        float inverseF = 1.0f / f;
+        for (int i = 0; i < n; i++) {
+            res.raw[i] = raw[i] * inverseF;
+        }
+        return res;
+    }
+
     T lengthSquared() const {
         T length = 0;
         for(int i = 0 ; i < n; i++) {

@@ -15,11 +15,13 @@ struct BBox {
 struct Triangle {
     Point3 pts[3] = {};
     Vec2f uv[3] = {};
+    float invW[3] = {};
 
-    Triangle(const Point3 other[3], const Vec2f otherUV[3]) {
+    Triangle(const Point3 other[3], const Vec2f otherUV[3], const float otherW[3]) {
         for (int i = 0 ; i < 3 ; i++) {
             pts[i] = other[i];
             uv[i] = otherUV[i];
+            invW[i] = otherW[i];
         }
     }
 };
