@@ -138,6 +138,20 @@ public:
         return res;
     }
 
+    static Matrix<float, 4, 4> shear(float xy, float xz,
+                                     float yx, float yz,
+                                     float zx, float zy) {
+        auto res = Matrix<float, 4, 4>::identity();
+        res[1][0] = xy;
+        res[2][0] = xz;
+        res[0][1] = yx;
+        res[2][1] = yz;
+        res[0][2] = zx;
+        res[1][2] = zy;
+
+        return res;
+    }
+
     static Matrix<float, 4, 4> viewport(float x, float y, float w, float h) {
         auto m = Matrix<float, 4, 4>::identity();
         m[3][0] = x + w / 2.f;
