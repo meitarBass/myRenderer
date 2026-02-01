@@ -14,25 +14,43 @@ struct BBox {
 
 struct Triangle {
     Point3 pts[3] = {};
+    Vec2f uv[3] = {};
 
-    explicit Triangle(const Point3 other[3]) {
+    Triangle(const Point3 other[3], const Vec2f otherUV[3]) {
         for (int i = 0 ; i < 3 ; i++) {
             pts[i] = other[i];
+            uv[i] = otherUV[i];
         }
     }
 };
 
 struct Face {
-    int a, b, c;
-    int na, nb, nc;
+    int vertexIndices[3] = {};
+    int normalIndices[3] = {};
+    int textureIndices[3] = {};
+
+    Point3 pts[3] = {};
+    Point3 normals[3] = {};
+    Vec2f  uv[3] = {};
 
     Face() = default;
-    Face(const int verticesIndices[3], const int normalIndices[3]) :
-            a(verticesIndices[0]), b(verticesIndices[1]), c(verticesIndices[2]),
-            na(normalIndices[0]), nb(normalIndices[1]), nc(normalIndices[2])
-    {}
-};
+    Face(const int vIndices[3], const int nIndices[3], const int tIndices[3]) {
+        for (int i = 0; i < 3; i++) {
+            vertexIndices[i] = vIndices[i];
+            normalIndices[i] = nIndices[i];
+            textureIndices[i] = tIndices[i];
+        }
+    }
 
-// Matrix
+    void updateFace(const std::vector<Point3>& modelVertices,
+                    const std::vector<Point3>& modelNormals,
+                    const std::vector<Vec2f>& modelTexture) {
+        for(int i = 0; i < 3; i++) {
+            pts[i] = modelVertices[vertexIndices[i]];
+            normals[i] = modelNormals[normalIndices[i]];
+            uv[i] = modelTexture[textureIndices[i]];
+        }
+    }
+};
 
 #endif //RENDERER_GEOMETRY_H
