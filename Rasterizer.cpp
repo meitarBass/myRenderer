@@ -30,48 +30,36 @@ BBox computeTriangleBBox(const Triangle &tri) {
 }
 
 
-void drawTriangle(const Triangle &tri, std::vector<float>& zbuffer,
-                  TGAImage &image, const TGAImage& texture, const float intensity[3]) {
+void drawTriangle(const Triangle &tri, RenderContext &ctx, const float intensity[3]) {
     BBox bbox = computeTriangleBBox(tri);
 
-    int xStart = std::max(0, (int) bbox._boxMin.x());
-    int xEnd = std::min(image.width() - 1, (int) bbox._boxMax.x());
+    int width = ctx.framebuffer.width();
+    int height = ctx.framebuffer.height();
 
-    int yStart = std::max(0, (int) bbox._boxMin.y());
-    int yEnd = std::min(image.height() - 1, (int) bbox._boxMax.y());
+    int minX = std::max(0, (int)bbox._boxMin.x());
+    int maxX = std::min(width - 1, (int)bbox._boxMax.x());
+    int minY = std::max(0, (int)bbox._boxMin.y());
+    int maxY = std::min(height - 1, (int)bbox._boxMax.y());
 
-    #pragma omp parallel for
-    for (int x = xStart; x <= xEnd; x++) {
-        for (int y = yStart; y <= yEnd; y++) {
-            Vec3f xyVec { float(x), float(y), 0.0f };
-            Vec3f bc_screen = barycentric(tri, xyVec);
-            if (bc_screen.x() < 0 || bc_screen.y() < 0 || bc_screen.z() < 0) continue;
+    for (int x = minX; x <= maxX; x++) {
+        for (int y = minY; y <= maxY; y++) {
+            Point3 bc = barycentric(tri, Point3(x, y, 0));
+            if (bc.x() < 0 || bc.y() < 0 || bc.z() < 0) continue;
 
-            // Compute z value in screen coordinates using the barycentric coords.
-            float z = 0, intensityP = 0;
-            for (int i = 0; i < 3; i++) {
-                z += tri.pts[i].z() * bc_screen[i];
-                intensityP += intensity[i] * bc_screen[i];
-            }
+            float z = tri.pts[0].z() * bc.x() + tri.pts[1].z() * bc.y() + tri.pts[2].z() * bc.z();
+            int idx = x + y * width;
 
-            intensityP = std::min(1.f, std::max(0.f, intensityP));
+            if (ctx.zbuffer[idx] < z) {
+                float invW = tri.invW[0] * bc.x() + tri.invW[1] * bc.y() + tri.invW[2] * bc.z();
+                Vec2f uv = (tri.uv[0] * bc.x() + tri.uv[1] * bc.y() + tri.uv[2] * bc.z()) / invW;
 
-            if (zbuffer[x + y * image.width()] < z) {
-                // Get the texture
+                TGAColor color = ctx.diffuseMap.get(uv.x() * ctx.diffuseMap.width(), uv.y() * ctx.diffuseMap.height());
 
-                float currentInvW = tri.invW[0] * bc_screen[0] + tri.invW[1] * bc_screen[1] + tri.invW[2] * bc_screen[2];
-                Vec2f currentUVoverW = tri.uv[0] * bc_screen[0] + tri.uv[1] * bc_screen[1] + tri.uv[2] * bc_screen[2];
-                Vec2f finalUV = currentUVoverW / currentInvW;
-                TGAColor color = texture.get(finalUV.x() * texture.width(), finalUV.y() * texture.height());
+                float pIntensity = intensity[0] * bc.x() + intensity[1] * bc.y() + intensity[2] * bc.z();
+                for (int i = 0; i < 3; i++) color[i] = (unsigned char)(color[i] * pIntensity);
 
-                TGAColor finalColor;
-                finalColor[0] = color[0] * intensityP; // Blue
-                finalColor[1] = color[1] * intensityP; // Green
-                finalColor[2] = color[2] * intensityP; // Red
-                finalColor[3] = 255;                   // Alpha
-
-                zbuffer[x + y * image.width()] = z;
-                image.set(x, y, finalColor);
+                ctx.zbuffer[idx] = z;
+                ctx.framebuffer.set(x, y, color);
             }
         }
     }
@@ -143,42 +131,27 @@ void fillTriangle(const Triangle& tri, TGAImage &framebuffer, TGAColor color) {
     }
 }
 
-void drawModel(const ModelLoader &model, TGAImage &framebuffer, const TGAImage& texture,
-               std::vector<float>& zbuffer, const Matrix4f4 &totalMat, const Matrix4f4 &modelMat, Vec3f eye) {
-    const auto &faces = model.getFaces();
-
-    Vec3f lightDir = (eye - Vec3f(0, 0, 0)).normalize();
+void drawModel(RenderContext &ctx) {
+    const auto &faces = ctx.model.getFaces();
 
     for (const auto &face : faces) {
         float verticesIntensity[3], invW[3];
-        Point3 screenCoords[3], worldCoords[3];
+        Point3 screenCoords[3];
         Vec2f uv[3];
 
         for (int i = 0; i < 3; i++) {
-            Vec4f vWorld = modelMat * Vec4f(face.pts[i]);
-            worldCoords[i] = Vec3f(vWorld[0], vWorld[1], vWorld[2]);
+            Vec4f vWorld = ctx.modelMat * Vec4f(face.pts[i]);
+            Vec4f vScreen = ctx.totalMat * Vec4f(face.pts[i]);
 
-            Vec4f vNormal = modelMat * Vec4f(face.normals[i][0], face.normals[i][1], face.normals[i][2], 0.0f);
-            Vec3f nWorld = Vec3f(vNormal[0], vNormal[1], vNormal[2]).normalize();
-
-            Vec4f vScreen = totalMat * Vec4f(face.pts[i]);
             invW[i] = 1.0f / vScreen.w();
             uv[i] = face.uv[i] * invW[i];
+            screenCoords[i] = Vec3f(vScreen[0] * invW[i], vScreen[1] * invW[i], vScreen[2] * invW[i]);
 
-            screenCoords[i] = Vec3f(
-                    vScreen[0] * invW[i],
-                    vScreen[1] * invW[i],
-                    vScreen[2] * invW[i]
-            );
-
-            verticesIntensity[i] = std::max(0.f, dotProduct(nWorld, lightDir));
+            Vec4f vNormal = ctx.modelMat * Vec4f(face.normals[i].x(), face.normals[i].y(), face.normals[i].z(), 0.0f);
+            Vec3f nWorld = Vec3f(vNormal[0], vNormal[1], vNormal[2]).normalize();
+            verticesIntensity[i] = std::max(0.f, dotProduct(nWorld, ctx.lightDir));
         }
 
-        Vec3f viewDir = (eye - worldCoords[0]).normalize();
-        Vec3f nFace = cross(worldCoords[1] - worldCoords[0], worldCoords[2] - worldCoords[0]).normalize();
-
-        if (dotProduct(nFace, viewDir) > 0) {
-            drawTriangle(Triangle(screenCoords, uv, invW), zbuffer, framebuffer, texture, verticesIntensity);
-        }
+        drawTriangle(Triangle(screenCoords, uv, invW), ctx, verticesIntensity);
     }
 }

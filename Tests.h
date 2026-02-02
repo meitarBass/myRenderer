@@ -27,8 +27,8 @@ public:
         Vec3f eye(0, 0, 3);
         Vec3f center(0, 0, 0);
         Vec3f up(0, 1, 0);
+        Vec3f lightDir = (eye - center).normalize();
 
-        auto ModelView  = Matrix4f4::lookat(eye, center, up);
         auto Projection = Matrix4f4::projection(7);
         auto View       = Matrix4f4::viewport(width/8, height/8, width*3/4, height*3/4);
 
@@ -37,23 +37,43 @@ public:
 
         for (int i = 0; i < 4; i++) {
             TGAImage framebuffer(width, height, TGAImage::RGB);
-            auto zbuffer = std::vector<float>(width * height, -std::numeric_limits<float>::max());
 
-            auto Rotation = Matrix4f4::rotationY(angles[i]);
-            auto Shear = Matrix4f4::shear(0.1f, 0, 0, 0, 0, 0);
+            // --- הוספת רקע לבן ---
+            for (int x = 0; x < width; x++) {
+                for (int y = 0; y < height; y++) {
+                    // צובע בלבן: R=255, G=255, B=255, A=255
+                    framebuffer.set(x, y, {255, 255, 255, 255});
+                }
+            }
+            // ---------------------
 
-            auto modelMat = Rotation * Shear;
+            std::vector<float> zbuffer(width * height, -std::numeric_limits<float>::max());
 
-            auto mat = View * Projection * ModelView * modelMat;
+            auto Model = Matrix4f4::rotationY(angles[i]);
+            auto LookAt = Matrix4f4::lookat(eye, center, up);
+            auto totalMat = View * Projection * LookAt * Model;
+
+            // שימוש ב-RenderContext החדש שבנינו
+            RenderContext ctx = {
+                .model = model,
+                .diffuseMap = texture,
+                .normalMap = nullptr,
+                .framebuffer = framebuffer,
+                .zbuffer = zbuffer,
+                .totalMat = totalMat,
+                .modelMat = Model,
+                .eye = eye,
+                .lightDir = lightDir
+            };
 
             std::cout << "  Rendering angle: " << names[i] << " degrees..." << std::endl;
 
-            drawModel(model, framebuffer, texture, zbuffer, mat, modelMat, eye);
+            drawModel(ctx);
 
             std::string filename = "test_output_" + names[i] + ".tga";
             framebuffer.write_tga_file(filename.c_str());
         }
-        std::cout << "--- Visual Suite Done! Check your folder for 4 images ---" << std::endl;
+        std::cout << "--- Visual Suite Done! ---" << std::endl;
     }
 
 private:
