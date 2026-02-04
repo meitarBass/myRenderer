@@ -2,8 +2,8 @@
 #define RENDERER_GEOMETRY_H
 
 #include <iostream>
-#include "Geometry/Vec.h"
-#include "Geometry/Matrix.h"
+#include "Vec.h"
+#include "Matrix.h"
 
 struct BBox {
     Point3 _boxMin{}, _boxMax{};

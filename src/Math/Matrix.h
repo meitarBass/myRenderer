@@ -1,7 +1,7 @@
 #ifndef RENDERER_MATRIX_H
 #define RENDERER_MATRIX_H
 
-#include "Geometry/Vec.h"
+#include "Vec.h"
 
 template <typename T, int M, int N>
 struct Matrix {
@@ -9,6 +9,8 @@ private:
     Vec<T, M> columns[N] = {};
 
 public:
+    Matrix() = default;
+
     Matrix(T diagVal) {
         for (int col = 0 ; col < N ; col++) {
             // Init a column
@@ -109,6 +111,8 @@ public:
 
     static Matrix<float, 4, 4> rotationX(float angle) {
         static_assert(N == M && N == 4);
+        angle = GraphicsUtils::angleToRadians(angle);
+
         auto res = Matrix<float, 4, 4>::identity();
         float s = std::sin(angle);
         float c = std::cos(angle);
@@ -119,6 +123,8 @@ public:
 
     static Matrix<float, 4, 4> rotationY(float angle) {
         static_assert(N == M && N == 4);
+        angle = GraphicsUtils::angleToRadians(angle);
+
         auto res = Matrix<float, 4, 4>::identity();
         float s = std::sin(angle);
         float c = std::cos(angle);
@@ -130,6 +136,8 @@ public:
 
     static Matrix<float, 4, 4> rotationZ(float angle) {
         static_assert(N == M && N == 4);
+        angle = GraphicsUtils::angleToRadians(angle);
+
         auto res = Matrix<float, 4, 4>::identity();
         float s = std::sin(angle);
         float c = std::cos(angle);

@@ -1,0 +1,21 @@
+#ifndef RENDERER_RASTERIZER_H
+#define RENDERER_RASTERIZER_H
+
+#include "../Math/Geometry.h"
+#include "../IO/tgaimage.h"
+#include "../IO/ModelLoader.h"
+#include "IShader.h"
+
+struct RenderContext {
+    const ModelLoader &model;
+    TGAImage& framebuffer;
+    std::vector<float>& zbuffer;
+};
+
+
+Point3 barycentric(const Vec2f& A, const Vec2f& B, const Vec2f& C, const Vec2f& P);
+BBox computeTriangleBBox(const Vec3f pts[3]);
+void drawTriangle(const Varyings varyings[3], IShader &shader, TGAImage &framebuffer, std::vector<float> &zbuffer);
+void drawModel(RenderContext &ctx, IShader& shader);
+
+#endif //RENDERER_RASTERIZER_H

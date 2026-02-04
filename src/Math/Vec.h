@@ -8,6 +8,10 @@
 namespace GraphicsUtils {
     constexpr float EPSILON = 1e-5f;
     constexpr float PI = 3.14159265359f;
+
+    inline float angleToRadians(float angle) {
+        return GraphicsUtils::PI * angle / 180;
+    }
 }
 
 template <typename T>
@@ -119,6 +123,15 @@ public:
         }
         auto vecLengthInverse = 1.0f / std::sqrt(l2);
         return (*this) * vecLengthInverse;
+    }
+
+    Vec<T, n> normalize() const {
+        T l2 = lengthSquared();
+        if (l2 < GraphicsUtils::EPSILON * GraphicsUtils::EPSILON) {
+            return *this;
+        }
+        auto vecLengthInverse = 1.0f / std::sqrt(l2);
+        return Vec<T, n>(*this) * vecLengthInverse;
     }
 
 };

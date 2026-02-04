@@ -1,5 +1,6 @@
-#include "Rasterizer.h"
-#include "Tests.h"
+#include "src/Core/Rasterizer.h"
+#include "src/Shaders/PhongShader.h"
+#include "tests/Tests.h"
 
 
 int main() {
