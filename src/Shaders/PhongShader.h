@@ -43,17 +43,12 @@ public:
         const Vec3f V = (uniforms.cameraPos - worldPos).normalize();
         const Vec3f H = (L + V).normalize();
 
-        constexpr float ambient = 0.4f;
+        constexpr float ambient = 0.1f;
         const float diffuse = std::max(0.0f, dotProduct(N, L));
         const float specular = std::pow(std::max(0.0f, dotProduct(N, H)), 64.0f);
 
-        const float totalIntensity = ambient + diffuse + 0.6f * specular;
-
-        /*
-        const unsigned char g = (unsigned char)(std::min(1.f, totalIntensity) * 255);
-        color = {g, g, g, 255};
-        */
-
+        float totalIntensity = ambient + diffuse + 0.6f * specular;
+        
         TGAColor texColor = diffuseMap.get(
                 static_cast<int>(uv.x() * diffuseMap.width()),
                 static_cast<int>(uv.y() * diffuseMap.height())
