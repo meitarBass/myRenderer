@@ -17,6 +17,7 @@ struct Uniforms {
     Matrix4f4 projection;
     Matrix4f4 viewport;
     Vec3f lightDir;
+    Vec3f cameraPos;
 };
 
 class IShader {

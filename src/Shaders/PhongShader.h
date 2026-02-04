@@ -30,16 +30,24 @@ public:
 
 
     bool fragment(const Varyings& varyings, TGAColor &color) override  {
-        Vec3f normal = varyings.normal.normalize();
-        Vec2f uv = varyings.uv;
+        Vec3f N = varyings.normal.normalize();
+        Vec3f L = uniforms.lightDir.normalize();
 
+
+        Vec3f R = (N * (2 * dotProduct(N, L))) - L;
+        R = R.normalize();
+
+        Vec3f V = (uniforms.cameraPos - varyings.worldPos).normalize();
+
+        float ambient = 10.0f;
+        float diffuse = std::max(0.0f, dotProduct(N, L));
+        float specular = std::pow(std::max(0.0f, dotProduct(R, V)), 10.0f);
+
+        Vec2f uv = varyings.uv;
         TGAColor texColor = diffuseMap.get(uv.x() * diffuseMap.width(), uv.y() * diffuseMap.height());
 
-        float intensity = std::max(0.0f, dotProduct(normal, uniforms.lightDir));
-        color = texColor;
-
         for (int i = 0 ; i < 3 ; i++) {
-            color[i] = static_cast<unsigned char>(color[i] * intensity);
+            color[i] = std::min(255.0f, ambient + texColor[i] * (diffuse + 0.6f * specular));
         }
 
         return false;

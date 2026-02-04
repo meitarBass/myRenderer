@@ -116,7 +116,7 @@ public:
         return std::sqrt(lengthSquared());
     }
 
-    Vec<T, n> normalize() {
+    Vec<T, n> normalize() const {
         T l2 = lengthSquared();
         if (l2 < GraphicsUtils::EPSILON * GraphicsUtils::EPSILON) {
             return *this;
@@ -124,16 +124,6 @@ public:
         auto vecLengthInverse = 1.0f / std::sqrt(l2);
         return (*this) * vecLengthInverse;
     }
-
-    Vec<T, n> normalize() const {
-        T l2 = lengthSquared();
-        if (l2 < GraphicsUtils::EPSILON * GraphicsUtils::EPSILON) {
-            return *this;
-        }
-        auto vecLengthInverse = 1.0f / std::sqrt(l2);
-        return Vec<T, n>(*this) * vecLengthInverse;
-    }
-
 };
 
 using Vec2f = Vec<float, 2>;

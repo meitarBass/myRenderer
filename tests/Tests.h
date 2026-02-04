@@ -27,7 +27,7 @@ public:
         Vec3f eye(0, 0, 3);
         Vec3f center(0, 0, 0);
         Vec3f up(0, 1, 0);
-        Vec3f lightDir = (eye - center).normalize();
+        Vec3f lightDir = Vec3f(1,1,1).normalize();
 
         auto Projection = Matrix4f4::projection(7);
         auto View       = Matrix4f4::viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
@@ -63,6 +63,7 @@ public:
             uniforms.projection = Projection;
             uniforms.viewport = View;
             uniforms.lightDir = lightDir;
+            uniforms.cameraPos = eye;
 
             auto shader = PhongShader(texture, uniforms);
 
