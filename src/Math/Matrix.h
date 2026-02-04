@@ -171,8 +171,41 @@ public:
         m[2][2] = 255.f / 2.f; // Z buffer related
         return m;
     }
+
+    Matrix<float, 3, 3> inverseTranspose3x3() const {
+        Matrix<float, 3, 3> res;
+
+        // שליפת האיברים של ה-3x3 השמאלי עליון בצורה ברורה (row, col)
+        // הערה: columns[col][row]
+        const float m00 = columns[0][0], m01 = columns[1][0], m02 = columns[2][0];
+        const float m10 = columns[0][1], m11 = columns[1][1], m12 = columns[2][1];
+        const float m20 = columns[0][2], m21 = columns[1][2], m22 = columns[2][2];
+
+        float det = m00 * (m11 * m22 - m12 * m21) -
+                    m01 * (m10 * m22 - m12 * m20) +
+                    m02 * (m10 * m21 - m11 * m20);
+
+        if (std::abs(det) < GraphicsUtils::EPSILON) return Matrix<float, 3, 3>(1.0f);
+
+        const float invDet = 1.0f / det;
+
+        res[0][0] =  (m11 * m22 - m12 * m21) * invDet;
+        res[0][1] = -(m10 * m22 - m12 * m20) * invDet;
+        res[0][2] =  (m10 * m21 - m11 * m20) * invDet;
+
+        res[1][0] = -(m01 * m22 - m02 * m21) * invDet;
+        res[1][1] =  (m00 * m22 - m02 * m20) * invDet;
+        res[1][2] = -(m00 * m21 - m01 * m20) * invDet;
+
+        res[2][0] =  (m01 * m12 - m02 * m11) * invDet;
+        res[2][1] = -(m00 * m12 - m02 * m10) * invDet;
+        res[2][2] =  (m00 * m11 - m01 * m10) * invDet;
+
+        return res;
+    }
 };
 
 using Matrix4f4 = Matrix<float, 4, 4>;
+using Matrix3f3 = Matrix<float, 3, 3>;
 
 #endif //RENDERER_MATRIX_H

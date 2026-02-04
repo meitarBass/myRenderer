@@ -14,41 +14,55 @@ public:
         Varyings out;
 
         Vec4f clip = uniforms.projection * uniforms.modelView * Vec4f(localPos);
-        Vec4f ndc = clip / clip.w();
-        Vec4f screen = uniforms.viewport * ndc;
+        out.invW = 1.0f / clip.w();
+
+        const Vec4f ndc = clip * out.invW;
+        const Vec4f screen = uniforms.viewport * ndc;
 
         out.screenPos = Vec3f(screen.x(), screen.y(), screen.z());
 
-        out.uv = uv;
-        out.worldPos = localPos;
+        out.uv = uv * out.invW;
+        Vec4f world = uniforms.model * Vec4f(localPos);
+        out.worldPos = Vec3f(world.x(), world.y(), world.z()) * out.invW;
 
-        Vec4f rotNormal = uniforms.modelView * Vec4f(normal.x(), normal.y(), normal.z(), 0.0f);
-        out.normal = Vec3f(rotNormal.x(), rotNormal.y(), rotNormal.z()).normalize();
+        const Vec3f worldNormal = uniforms.normalMatrix * normal;
+        out.normal = worldNormal.normalize() * out.invW;
 
         return out;
     }
 
 
     bool fragment(const Varyings& varyings, TGAColor &color) override  {
-        Vec3f N = varyings.normal.normalize();
-        Vec3f L = uniforms.lightDir.normalize();
+        const float w = 1.0f / varyings.invW;
+        const Vec2f uv = varyings.uv * w;
+        const Vec3f worldPos = varyings.worldPos * w;
 
+        const Vec3f N = (varyings.normal * w).normalize();
+        const Vec3f L = uniforms.lightDir.normalize();
 
-        Vec3f R = (N * (2 * dotProduct(N, L))) - L;
-        R = R.normalize();
+        const Vec3f V = (uniforms.cameraPos - worldPos).normalize();
+        const Vec3f H = (L + V).normalize();
 
-        Vec3f V = (uniforms.cameraPos - varyings.worldPos).normalize();
+        constexpr float ambient = 0.4f;
+        const float diffuse = std::max(0.0f, dotProduct(N, L));
+        const float specular = std::pow(std::max(0.0f, dotProduct(N, H)), 64.0f);
 
-        float ambient = 10.0f;
-        float diffuse = std::max(0.0f, dotProduct(N, L));
-        float specular = std::pow(std::max(0.0f, dotProduct(R, V)), 10.0f);
+        const float totalIntensity = ambient + diffuse + 0.6f * specular;
 
-        Vec2f uv = varyings.uv;
-        TGAColor texColor = diffuseMap.get(uv.x() * diffuseMap.width(), uv.y() * diffuseMap.height());
+        /*
+        const unsigned char g = (unsigned char)(std::min(1.f, totalIntensity) * 255);
+        color = {g, g, g, 255};
+        */
 
-        for (int i = 0 ; i < 3 ; i++) {
-            color[i] = std::min(255.0f, ambient + texColor[i] * (diffuse + 0.6f * specular));
+        TGAColor texColor = diffuseMap.get(
+                static_cast<int>(uv.x() * diffuseMap.width()),
+                static_cast<int>(uv.y() * diffuseMap.height())
+                );
+
+        for (int i = 0; i < 3; i++) {
+            color[i] = (unsigned char)std::min(255.0f, texColor[i] * totalIntensity);
         }
+        color[3] = 255.0f;
 
         return false;
     }

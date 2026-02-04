@@ -1,9 +1,9 @@
 #include "Rasterizer.h"
 
 Point3 barycentric(const Vec2f& A, const Vec2f& B, const Vec2f& C, const Vec2f& P) {
-    Vec2f v0 = B - A;
-    Vec2f v1 = C - A;
-    Vec2f v2 = P - A;
+    const Vec2f v0 = B - A;
+    const Vec2f v1 = C - A;
+    const Vec2f v2 = P - A;
 
     float denom = determinant2D(v0, v1);
     if (std::abs(denom) < GraphicsUtils::EPSILON) return { -1, 1, 1 };
@@ -25,20 +25,20 @@ BBox computeTriangleBBox(const Vec3f pts[3]) {
         maxVal.x() = std::max(maxVal.x(), pts[i].x());
         maxVal.y() = std::max(maxVal.y(), pts[i].y());
     }
-    return BBox(Point3(minVal.x(), minVal.y(), 0), Point3(maxVal.x(), maxVal.y(), 0));
+    return { Point3(minVal.x(), minVal.y(), 0), Point3(maxVal.x(), maxVal.y(), 0) };
 }
 
 void drawTriangle(const Varyings varyings[3], IShader &shader, TGAImage &framebuffer, std::vector<float> &zbuffer) {
     Vec3f pts[3] = { varyings[0].screenPos, varyings[1].screenPos, varyings[2].screenPos };
     BBox bbox = computeTriangleBBox(pts);
 
-    int width = framebuffer.width();
-    int height = framebuffer.height();
+    const int width = framebuffer.width();
+    const int height = framebuffer.height();
 
-    int minX = std::max(0, (int)bbox._boxMin.x());
-    int maxX = std::min(width - 1, (int)bbox._boxMax.x());
-    int minY = std::max(0, (int)bbox._boxMin.y());
-    int maxY = std::min(height - 1, (int)bbox._boxMax.y());
+    const int minX = std::max(0, (int)bbox._boxMin.x());
+    const int maxX = std::min(width - 1, (int)bbox._boxMax.x());
+    const int minY = std::max(0, (int)bbox._boxMin.y());
+    const int maxY = std::min(height - 1, (int)bbox._boxMax.y());
 
     for (int x = minX; x <= maxX; x++) {
         for (int y = minY; y <= maxY; y++) {
@@ -48,17 +48,18 @@ void drawTriangle(const Varyings varyings[3], IShader &shader, TGAImage &framebu
                                    Vec2f(x, y));
 
             if (bc.x() < 0 || bc.y() < 0 || bc.z() < 0) continue;
-            float z = pts[0].z() * bc.x() + pts[1].z() * bc.y() + pts[2].z() * bc.z();
 
-            int idx = x + y * width;
-            if (zbuffer[idx] < z) {
+            const float z = pts[0].z() * bc.x() + pts[1].z() * bc.y() + pts[2].z() * bc.z();
+            const int index = x + y * width;
+
+            if (zbuffer[index] < z) {
                 Varyings pixelVaryings = IShader::interpolate(varyings[0], varyings[1], varyings[2], bc);
 
                 TGAColor color;
                 bool discard = shader.fragment(pixelVaryings, color);
 
                 if (!discard) {
-                    zbuffer[idx] = z;
+                    zbuffer[index] = z;
                     framebuffer.set(x, y, color);
                 }
             }
@@ -71,11 +72,9 @@ void drawModel(RenderContext &ctx, IShader& shader) {
 
     for (const auto &face : faces) {
         Varyings triangleVaryings[3];
-
         for (int i = 0 ; i < 3; i++) {
             triangleVaryings[i] = shader.vertex(face.pts[i], face.normals[i], face.uv[i]);
         }
-
         drawTriangle(triangleVaryings, shader, ctx.framebuffer, ctx.zbuffer);
     }
 }

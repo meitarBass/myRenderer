@@ -24,34 +24,24 @@ public:
     static void runVisualSuite(const ModelLoader &model, const TGAImage& texture, int width, int height) {
         std::cout << "--- Starting Visual Suite (Rotating Model) ---" << std::endl;
 
-        Vec3f eye(0, 0, 3);
-        Vec3f center(0, 0, 0);
-        Vec3f up(0, 1, 0);
-        Vec3f lightDir = Vec3f(1,1,1).normalize();
+        const Vec3f eye(0, 0, 3);
+        const Vec3f center(0, 0, 0);
+        const Vec3f up(0, 1, 0);
+        const Vec3f lightDir = Vec3f(1, 1, 1).normalize();
 
-        auto Projection = Matrix4f4::projection(7);
+        auto Projection = Matrix4f4::projection(3);
         auto View       = Matrix4f4::viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
 
-        float angles[] = {0.0f, 90.0f, 180.0f, 270.0f};
-        std::string names[] = {"0", "90", "180", "270"};
+        float angles[] = {0.0f, 30.0f, 90.0f, 180.0f, 270.0f};
+        std::string names[] = {"0", "30", "90", "180", "270"};
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 5; i++) {
             TGAImage framebuffer(width, height, TGAImage::RGB);
-
-            for (int x = 0; x < width; x++) {
-                for (int y = 0; y < height; y++) {
-                    // צובע בלבן: R=255, G=255, B=255, A=255
-                    framebuffer.set(x, y, {255, 255, 255, 255});
-                }
-            }
-
             std::vector<float> zbuffer(width * height, -std::numeric_limits<float>::max());
 
             auto Model = Matrix4f4::rotationY(angles[i]);
             auto LookAt = Matrix4f4::lookat(eye, center, up);
-            auto totalMat = View * Projection * LookAt * Model;
 
-            // שימוש ב-RenderContext החדש שבנינו
             RenderContext ctx = {
                 .model = model,
                 .framebuffer = framebuffer,
@@ -59,11 +49,13 @@ public:
             };
 
             Uniforms uniforms;
+            uniforms.modelView = Model;
             uniforms.modelView = LookAt * Model;
             uniforms.projection = Projection;
             uniforms.viewport = View;
             uniforms.lightDir = lightDir;
             uniforms.cameraPos = eye;
+            uniforms.normalMatrix = Model.inverseTranspose3x3();
 
             auto shader = PhongShader(texture, uniforms);
 
@@ -89,7 +81,7 @@ private:
         auto identity = Matrix4f4::identity();
         Vec4f v(1, 2, 3, 1);
         Vec4f res = identity * v;
-        assert(std::abs(res[0] - 1.f) < 1e-5);
+        assert(std::abs(res[0] - 1.f) < GraphicsUtils::EPSILON);
         std::cout << "  [OK] Matrix Identity" << std::endl;
     }
 
@@ -97,7 +89,7 @@ private:
         auto s = Matrix4f4::shear(0.5f, 0, 0, 0, 0, 0);
         Vec4f v(0, 1, 0, 1);
         Vec4f res = s * v;
-        assert(std::abs(res[0] - 0.5f) < 1e-5);
+        assert(std::abs(res[0] - 0.5f) < GraphicsUtils::EPSILON);
         std::cout << "  [OK] Matrix Shear" << std::endl;
     }
 
@@ -110,7 +102,7 @@ private:
 
         Point3 bc = barycentric(A, B, C, P);
 
-        assert(std::abs(bc.x() - 1.0f) < 1e-5);
+        assert(std::abs(bc.x() - 1.0f) < GraphicsUtils::EPSILON);
 
         Vec2f center(3.333f, 3.333f);
         bc = barycentric(A, B, C, center);

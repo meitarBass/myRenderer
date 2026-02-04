@@ -10,12 +10,15 @@ struct Varyings {
     Vec2f uv;
     Vec3f normal;
     Vec3f worldPos;
+    float invW{1.0f};
 };
 
 struct Uniforms {
+    Matrix4f4 model;
     Matrix4f4 modelView;
     Matrix4f4 projection;
     Matrix4f4 viewport;
+    Matrix3f3 normalMatrix;
     Vec3f lightDir;
     Vec3f cameraPos;
 };
@@ -32,9 +35,9 @@ public:
         Varyings res;
 
         res.screenPos = v1.screenPos * barycentric.x() + v2.screenPos * barycentric.y() + v3.screenPos * barycentric.z();
+        res.invW = v1.invW * barycentric.x() + v2.invW * barycentric.y() + v3.invW * barycentric.z();
         res.uv = v1.uv * barycentric.x() + v2.uv * barycentric.y() + v3.uv * barycentric.z();
         res.normal = v1.normal * barycentric.x() + v2.normal * barycentric.y() + v3.normal * barycentric.z();
-        res.normal.normalize();
 
         res.worldPos = v1.worldPos * barycentric.x() + v2.worldPos * barycentric.y() + v3.worldPos * barycentric.z();
 
