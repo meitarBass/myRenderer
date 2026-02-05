@@ -7,8 +7,8 @@
 #include <vector>
 #include "../src/Math/Matrix.h"
 #include "../src/Math/Vec.h"
-#include "../src/Math/Geometry.h"
 #include "../src/Core/Rasterizer.h"
+#include "../src/Core/ModelInstance.h"
 
 class RendererTests {
 public:
@@ -21,7 +21,7 @@ public:
         std::cout << "--- Unit Tests Passed! ---" << std::endl;
     }
 
-    static void runVisualSuite(const ModelLoader &model, const TGAImage& texture, int width, int height) {
+    static void runVisualSuite(const std::vector<ModelInstance>& scene, int width, int height) {
         std::cout << "--- Starting Visual Suite (Rotating Model) ---" << std::endl;
 
         const Vec3f eye(0, 0, 3);
@@ -42,12 +42,6 @@ public:
             auto Model = Matrix4f4::rotationY(angles[i]);
             auto LookAt = Matrix4f4::lookat(eye, center, up);
 
-            RenderContext ctx = {
-                .model = model,
-                .framebuffer = framebuffer,
-                .zbuffer = zbuffer,
-            };
-
             Uniforms uniforms;
             uniforms.modelView = Model;
             uniforms.modelView = LookAt * Model;
@@ -57,11 +51,21 @@ public:
             uniforms.cameraPos = eye;
             uniforms.normalMatrix = Model.inverseTranspose3x3();
 
-            auto shader = PhongShader(texture, uniforms);
-
             std::cout << "  Rendering angle: " << names[i] << " degrees..." << std::endl;
 
-            drawModel(ctx, shader);
+            for (auto object : scene) {
+                RenderContext ctx = {
+                    .model = object.model,
+                    .framebuffer = framebuffer,
+                    .zbuffer = zbuffer,
+                };
+
+
+                auto shader = PhongShader(object.diffuse, object.normal, uniforms, object.useAlphaTest);
+                drawModel(ctx, shader);
+            }
+
+
 
             std::string filename = "test_output_" + names[i] + ".tga";
             framebuffer.write_tga_file(filename.c_str());

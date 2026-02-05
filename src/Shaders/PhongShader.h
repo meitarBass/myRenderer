@@ -5,8 +5,8 @@
 
 class PhongShader: public IShader {
 public:
-    PhongShader(const TGAImage& diffuseMap, const Uniforms& uniforms)
-        : diffuseMap(diffuseMap) {
+    PhongShader(const TGAImage& diffuseMap, const TGAImage& normalMap, const Uniforms& uniforms, const bool useAlphaTest)
+        : diffuseMap(diffuseMap), normalMap(normalMap), useAlphaTest(useAlphaTest) {
         this->uniforms = uniforms;
     }
 
@@ -37,17 +37,33 @@ public:
         const Vec2f uv = varyings.uv * w;
         const Vec3f worldPos = varyings.worldPos * w;
 
-        const Vec3f N = (varyings.normal * w).normalize();
+        // const Vec3f N = (varyings.normal * w).normalize();
+        TGAColor nmC = normalMap.get(
+            static_cast<int>(uv.x() * normalMap.width()),
+            static_cast<int>(uv.y() * normalMap.height())
+            );
+
+        const Vec3f normalFromMap (
+            (static_cast<float>(nmC[2]) / 255.0f) * 2.0f - 1.0f,
+            (static_cast<float>(nmC[1]) / 255.0f) * 2.0f - 1.0f,
+            (static_cast<float>(nmC[0]) / 255.0f) * 2.0f - 1.0f
+        );
+
+        const Vec3f N = (uniforms.normalMatrix * normalFromMap).normalize();
+
         const Vec3f L = uniforms.lightDir.normalize();
-
         const Vec3f V = (uniforms.cameraPos - worldPos).normalize();
-        const Vec3f H = (L + V).normalize();
 
-        constexpr float ambient = 0.1f;
-        const float diffuse = std::max(0.0f, dotProduct(N, L));
-        const float specular = std::pow(std::max(0.0f, dotProduct(N, H)), 64.0f);
+        const float dotNL = dotProduct(N, L);
+        Vec3f R = (N * (2.0f * dotNL)) - L;
+        R = R.normalize();
 
-        float totalIntensity = ambient + diffuse + 0.6f * specular;
+        constexpr float ambient = 0.4f;
+        const float diffuse = std::max(0.0f, dotNL);
+
+        const float specular = std::pow(std::max(0.0f, dotProduct(R, V)), 20.0f);
+
+        const float totalIntensity = ambient + diffuse + 0.6f * specular;
         
         TGAColor texColor = diffuseMap.get(
                 static_cast<int>(uv.x() * diffuseMap.width()),
@@ -57,13 +73,14 @@ public:
         for (int i = 0; i < 3; i++) {
             color[i] = (unsigned char)std::min(255.0f, texColor[i] * totalIntensity);
         }
-        color[3] = 255.0f;
 
-        return false;
+        return useAlphaTest ? texColor[3] < 200 : false;
     }
 
 private:
     const TGAImage& diffuseMap;
+    const TGAImage& normalMap;
+    const bool useAlphaTest;
 };
 
 #endif //RENDERER_PHONGSHADER_H
