@@ -23,6 +23,8 @@ struct Uniforms {
     Matrix3f3 normalMatrix;
     Vec3f lightDir;
     Vec3f cameraPos;
+
+    Matrix4f4 lightSpaceMatrix;
 };
 
 class IShader {
