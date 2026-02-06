@@ -25,6 +25,16 @@ private:
     const TGAImage &normalMap;
     const TGAImage &specularMap;
     const bool useAlphaTest;
+
+    float calculateShadowFactor(const Vec3f& worldPos) const;
+    Vec3f calculateNormal(const Vec2f& uv, const Vec3f& T, const Vec3f& B, const Vec3f& N) const;
+    void calculateLighting(const Vec3f& normal,
+                           const Vec3f& worldPos,
+                           const Vec2f& uv,
+                           float shadowFactor,
+                           float& outDiffuse,
+                           float& outSpec) const;
+
 };
 
 #endif //RENDERER_PHONGSHADER_H

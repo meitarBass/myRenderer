@@ -13,7 +13,6 @@ public:
 
     Matrix(T diagVal) {
         for (int col = 0 ; col < N ; col++) {
-            // Init a column
             columns[col] = Vec<T, M>{};
             if(col < M)
                 columns[col][col] = diagVal;
@@ -69,7 +68,6 @@ public:
         return Matrix<T, M, N>{1};
     }
 
-    // translation is always 4x4
     static Matrix<float, 4, 4> translation(Vec3f v) {
         Matrix<float, 4, 4> mat{1};
         mat[3].x() = v.x();
@@ -79,7 +77,6 @@ public:
         return mat;
     }
 
-// scale is always 4x4
     static Matrix<float, 4, 4> scale(float factor) {
         Matrix mat{factor};
         return mat;
@@ -90,8 +87,8 @@ public:
         Vec3f x = cross(up, z).normalize();
         Vec3f y = cross(z, x).normalize();
 
-        auto matrixInverse = Matrix<float, 4, 4>::identity(); // Since orthogonal is just the transpose
-        auto translation = Matrix<float, 4, 4>::identity();   // easy
+        auto matrixInverse = Matrix<float, 4, 4>::identity();
+        auto translation = Matrix<float, 4, 4>::identity();
 
         for (int i = 0; i < 3; i++) {
             matrixInverse[i][0] = x[i];
@@ -168,15 +165,13 @@ public:
 
         m[0][0] = w / 2.f;
         m[1][1] = h / 2.f;
-        m[2][2] = 255.f / 2.f; // Z buffer related
+        m[2][2] = 255.f / 2.f;
         return m;
     }
 
     Matrix<float, 3, 3> inverseTranspose3x3() const {
         Matrix<float, 3, 3> res;
 
-        // שליפת האיברים של ה-3x3 השמאלי עליון בצורה ברורה (row, col)
-        // הערה: columns[col][row]
         const float m00 = columns[0][0], m01 = columns[1][0], m02 = columns[2][0];
         const float m10 = columns[0][1], m11 = columns[1][1], m12 = columns[2][1];
         const float m20 = columns[0][2], m21 = columns[1][2], m22 = columns[2][2];
