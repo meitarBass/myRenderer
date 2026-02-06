@@ -25,6 +25,11 @@ struct Uniforms {
     Vec3f cameraPos;
 
     Matrix4f4 lightSpaceMatrix;
+
+    Matrix4f4 lightProjView;
+    const std::vector<float>* shadowMap = nullptr;
+    int shadowWidth = 0;
+    int shadowHeight = 0;
 };
 
 class IShader {

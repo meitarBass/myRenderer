@@ -34,58 +34,101 @@ public:
     }
 
 
-    bool fragment(const Varyings& varyings, TGAColor &color) override  {
-        const float w = 1.0f / varyings.invW;
-        const Vec2f uv = varyings.uv * w;
-        const Vec3f worldPos = varyings.worldPos * w;
+   bool fragment(const Varyings& varyings, TGAColor &color) override  {
+    const float w = 1.0f / varyings.invW;
+    const Vec2f uv = varyings.uv * w;
+    const Vec3f worldPos = varyings.worldPos * w;
 
-        const Vec3f N = varyings.normal.normalize();
-        const Vec3f T = varyings.tangent.normalize();
-        const Vec3f B = varyings.bitangent.normalize();
+    // --- חישוב צל (Shadow Calculation) ---
+        float shadowFactor = 1.0f;
+        if (uniforms.shadowMap) {
+            // 1. הטלה למרחב האור (בלי Viewport עדיין)
+            Vec4f lightClip = uniforms.lightProjView * Vec4f(worldPos);
 
-        TGAColor nmC = normalMap.get(
-            static_cast<int>(uv.x() * normalMap.width()),
-            static_cast<int>(uv.y() * normalMap.height())
-        );
+            // 2. פרספקטיבה ידנית
+            Vec3f lightNDC = Vec3f(lightClip.x(), lightClip.y(), lightClip.z()) / lightClip.w();
 
-        const Vec3f mapNormal (
-            (static_cast<float>(nmC[2]) / 255.0f) * 2.0f - 1.0f,
-            (static_cast<float>(nmC[1]) / 255.0f) * 2.0f - 1.0f,
-            (static_cast<float>(nmC[0]) / 255.0f) * 2.0f - 1.0f
-        );
+            // 3. המרה ידנית מ-NDC (-1..1) לקואורדינטות טקסטורה (0..W, 0..H)
+            // הסבר: (NDC + 1) / 2 נותן טווח 0..1. ואז מכפילים ברוחב.
+            float scX = (lightNDC.x() + 1.0f) * 0.5f * uniforms.shadowWidth;
+            float scY = (lightNDC.y() + 1.0f) * 0.5f * uniforms.shadowHeight;
+            // את ה-Z אנחנו גם צריכים לנרמל לסקאלה של ה-ZBuffer שלך (תלוי איך Viewport מממש את זה)
+            // ה-Viewport שלך עושה: (z + 1) * 255/2. בואי נחקה את זה:
+            float currentDepth = (lightNDC.z() + 1.0f) * 0.5f * 255.0f; // הנחה שהעומק הוא 0-255
 
-        const Vec3f finalNormal = (T * mapNormal.x() + B * mapNormal.y() + N * mapNormal.z()).normalize();
+            int x = static_cast<int>(scX);
+            int y = static_cast<int>(scY);
 
-        const Vec3f L = uniforms.lightDir.normalize();
-        const Vec3f V = (uniforms.cameraPos - worldPos).normalize();
+            if (x >= 0 && x < uniforms.shadowWidth && y >= 0 && y < uniforms.shadowHeight) {
+                int idx = x + y * uniforms.shadowWidth;
+                float closestDepth = (*uniforms.shadowMap)[idx];
 
-        const float dotNL = dotProduct(finalNormal, L);
-        const float diffuse = std::max(0.0f, dotNL);
+                // תיקון הלוגיקה!
+                // אצלך: מספר גדול = קרוב. מספר קטן = רחוק.
+                // אנחנו בצל אם אנחנו "מאחורי" מה ששמור במפה.
+                // כלומר: currentDepth (שלי) < closestDepth (המחסום)
 
-        Vec3f R = (finalNormal * (2.0f * dotNL)) - L;
-        R = R.normalize();
-
-        TGAColor specData = specularMap.get(
-            static_cast<int>(uv.x() * specularMap.width()),
-            static_cast<int>(uv.y() * specularMap.height())
-        );
-
-        const float spec = std::pow(std::max(0.0f, dotProduct(R, V)), 10.0f) * (specData[0] / 255.0f);
-
-        constexpr float ambient = 0.3f;
-        const float totalIntensity = ambient + diffuse + spec;
-
-        TGAColor texColor = diffuseMap.get(
-                static_cast<int>(uv.x() * diffuseMap.width()),
-                static_cast<int>(uv.y() * diffuseMap.height())
-        );
-
-        for (int i = 0; i < 3; i++) {
-            color[i] = (unsigned char)std::min(255.0f, texColor[i] * totalIntensity);
+                float bias = 0.5f;
+                if (currentDepth < closestDepth - bias) {
+                    shadowFactor = 0.0f; // אני רחוק יותר -> אני בצל
+                }
+            }
         }
+    // -------------------------------------
 
-        return useAlphaTest ? texColor[3] < 200 : false;
+    const Vec3f N = varyings.normal.normalize();
+    const Vec3f T = varyings.tangent.normalize();
+    const Vec3f B = varyings.bitangent.normalize();
+
+    // ... (חישוב נורמלים - אותו דבר כמו קודם) ...
+    TGAColor nmC = normalMap.get(
+        static_cast<int>(uv.x() * normalMap.width()),
+        static_cast<int>(uv.y() * normalMap.height())
+    );
+    const Vec3f mapNormal (
+        (static_cast<float>(nmC[2]) / 255.0f) * 2.0f - 1.0f,
+        (static_cast<float>(nmC[1]) / 255.0f) * 2.0f - 1.0f,
+        (static_cast<float>(nmC[0]) / 255.0f) * 2.0f - 1.0f
+    );
+    const Vec3f finalNormal = (T * mapNormal.x() + B * mapNormal.y() + N * mapNormal.z()).normalize();
+
+
+    // חישובי תאורה
+    const Vec3f L = uniforms.lightDir.normalize();
+    const Vec3f V = (uniforms.cameraPos - worldPos).normalize();
+
+    const float dotNL = dotProduct(finalNormal, L);
+
+    // כאן השינוי הגדול: הצל משפיע על ה-Diffuse וה-Specular
+    const float diffuse = std::max(0.0f, dotNL) * shadowFactor;
+
+    Vec3f R = (finalNormal * (2.0f * dotNL)) - L;
+    R = R.normalize();
+
+    TGAColor specData = specularMap.get(
+        static_cast<int>(uv.x() * specularMap.width()),
+        static_cast<int>(uv.y() * specularMap.height())
+    );
+
+    // גם ה-Specular מושפע מהצל
+    const float spec = std::pow(std::max(0.0f, dotProduct(R, V)), 10.0f) * (specData[0] / 255.0f) * shadowFactor;
+
+    constexpr float ambient = 0.2f; // הורדתי קצת כדי שהצל יהיה דרמטי
+
+    // ה-Ambient לא מושפע מהצל (אחרת הצל יהיה שחור מוחלט ושטוח)
+    const float totalIntensity = ambient + diffuse + spec;
+
+    TGAColor texColor = diffuseMap.get(
+            static_cast<int>(uv.x() * diffuseMap.width()),
+            static_cast<int>(uv.y() * diffuseMap.height())
+    );
+
+    for (int i = 0; i < 3; i++) {
+        color[i] = (unsigned char)std::min(255.0f, texColor[i] * totalIntensity);
     }
+
+    return useAlphaTest ? texColor[3] < 200 : false;
+}
 
 private:
     const TGAImage& diffuseMap;
