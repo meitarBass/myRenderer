@@ -3,27 +3,11 @@
 
 #include <iostream>
 #include "Vec.h"
-#include "Matrix.h"
 
 struct BBox {
     Point3 _boxMin{}, _boxMax{};
 
-    BBox(Point3 Min, Point3 Max) : _boxMin(Min), _boxMax(Max) {}
-};
-
-
-struct Triangle {
-    Point3 pts[3] = {};
-    Vec2f uv[3] = {};
-    float invW[3] = {};
-
-    Triangle(const Point3 other[3], const Vec2f otherUV[3], const float otherW[3]) {
-        for (int i = 0 ; i < 3 ; i++) {
-            pts[i] = other[i];
-            uv[i] = otherUV[i];
-            invW[i] = otherW[i];
-        }
-    }
+    BBox(const Point3 &Min, const Point3 &Max) : _boxMin(Min), _boxMax(Max) {}
 };
 
 struct Face {

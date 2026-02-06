@@ -67,14 +67,38 @@ void drawTriangle(const Varyings varyings[3], IShader &shader, TGAImage &framebu
     }
 }
 
-void drawModel(RenderContext &ctx, IShader& shader) {
-    const auto &faces = ctx.model.getFaces();
+void drawModel(const RenderContext &ctx, IShader& shader) {
+    for (const auto &faces = ctx.model.getFaces(); const auto &face : faces) {
+        const auto basis = calculateTriangleBasis(face.pts, face.uv);
+        Vec3f tangent = basis.first;
+        Vec3f bitangent = basis.second;
 
-    for (const auto &face : faces) {
         Varyings triangleVaryings[3];
         for (int i = 0 ; i < 3; i++) {
-            triangleVaryings[i] = shader.vertex(face.pts[i], face.normals[i], face.uv[i]);
+            triangleVaryings[i] = shader.vertex(face.pts[i], face.normals[i], face.uv[i], tangent, bitangent);
         }
         drawTriangle(triangleVaryings, shader, ctx.framebuffer, ctx.zbuffer);
     }
+}
+
+std::pair<Vec3f, Vec3f> calculateTriangleBasis(const Vec3f pts[3], const Vec2f uvs[3]) {
+    Vec3f edge1 = pts[1] - pts[0];
+    Vec3f edge2 = pts[2] - pts[0];
+
+    Vec2f deltaUV1 = uvs[1] - uvs[0];
+    Vec2f deltaUV2 = uvs[2] - uvs[0];
+
+    const float f = 1.0f / (deltaUV1.x() * deltaUV2.y() - deltaUV2.x() * deltaUV1.y());
+
+    Vec3f tangent, bitangent;
+
+    tangent.x() = f * (deltaUV2.y() * edge1.x() - deltaUV1.y() * edge2.x());
+    tangent.y() = f * (deltaUV2.y() * edge1.y() - deltaUV1.y() * edge2.y());
+    tangent.z() = f * (deltaUV2.y() * edge1.z() - deltaUV1.y() * edge2.z());
+
+    bitangent.x() = f * (-deltaUV2.x() * edge1.x() + deltaUV1.x() * edge2.x());
+    bitangent.y() = f * (-deltaUV2.x() * edge1.y() + deltaUV1.x() * edge2.y());
+    bitangent.z() = f * (-deltaUV2.x() * edge1.z() + deltaUV1.x() * edge2.z());
+
+    return {tangent.normalize(), bitangent.normalize()};
 }

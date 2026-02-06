@@ -5,12 +5,13 @@
 
 class PhongShader: public IShader {
 public:
-    PhongShader(const TGAImage& diffuseMap, const TGAImage& normalMap, const Uniforms& uniforms, const bool useAlphaTest)
-        : diffuseMap(diffuseMap), normalMap(normalMap), useAlphaTest(useAlphaTest) {
+    PhongShader(const TGAImage& diffuseMap, const TGAImage& normalMap, const TGAImage& specularMap, const Uniforms& uniforms, const bool useAlphaTest)
+        : diffuseMap(diffuseMap), normalMap(normalMap), specularMap(specularMap), useAlphaTest(useAlphaTest) {
         this->uniforms = uniforms;
     }
 
-    Varyings vertex(const Vec3f& localPos, const Vec3f& normal, const Vec2f& uv) override {
+    Varyings vertex(const Vec3f& localPos, const Vec3f& normal, const Vec2f& uv,
+                    const Vec3f& tangent, const Vec3f& bitangent) override {
         Varyings out;
 
         Vec4f clip = uniforms.projection * uniforms.modelView * Vec4f(localPos);
@@ -25,8 +26,9 @@ public:
         Vec4f world = uniforms.model * Vec4f(localPos);
         out.worldPos = Vec3f(world.x(), world.y(), world.z()) * out.invW;
 
-        const Vec3f worldNormal = uniforms.normalMatrix * normal;
-        out.normal = worldNormal.normalize() * out.invW;
+        out.normal = (uniforms.normalMatrix * normal).normalize() * out.invW;
+        out.tangent = (uniforms.normalMatrix * tangent).normalize() * out.invW;
+        out.bitangent = (uniforms.normalMatrix * bitangent).normalize() * out.invW;
 
         return out;
     }
@@ -37,38 +39,46 @@ public:
         const Vec2f uv = varyings.uv * w;
         const Vec3f worldPos = varyings.worldPos * w;
 
-        // const Vec3f N = (varyings.normal * w).normalize();
+        const Vec3f N = varyings.normal.normalize();
+        const Vec3f T = varyings.tangent.normalize();
+        const Vec3f B = varyings.bitangent.normalize();
+
         TGAColor nmC = normalMap.get(
             static_cast<int>(uv.x() * normalMap.width()),
             static_cast<int>(uv.y() * normalMap.height())
-            );
+        );
 
-        const Vec3f normalFromMap (
+        const Vec3f mapNormal (
             (static_cast<float>(nmC[2]) / 255.0f) * 2.0f - 1.0f,
             (static_cast<float>(nmC[1]) / 255.0f) * 2.0f - 1.0f,
             (static_cast<float>(nmC[0]) / 255.0f) * 2.0f - 1.0f
         );
 
-        const Vec3f N = (uniforms.normalMatrix * normalFromMap).normalize();
+        const Vec3f finalNormal = (T * mapNormal.x() + B * mapNormal.y() + N * mapNormal.z()).normalize();
 
         const Vec3f L = uniforms.lightDir.normalize();
         const Vec3f V = (uniforms.cameraPos - worldPos).normalize();
 
-        const float dotNL = dotProduct(N, L);
-        Vec3f R = (N * (2.0f * dotNL)) - L;
-        R = R.normalize();
-
-        constexpr float ambient = 0.4f;
+        const float dotNL = dotProduct(finalNormal, L);
         const float diffuse = std::max(0.0f, dotNL);
 
-        const float specular = std::pow(std::max(0.0f, dotProduct(R, V)), 20.0f);
+        Vec3f R = (finalNormal * (2.0f * dotNL)) - L;
+        R = R.normalize();
 
-        const float totalIntensity = ambient + diffuse + 0.6f * specular;
-        
+        TGAColor specData = specularMap.get(
+            static_cast<int>(uv.x() * specularMap.width()),
+            static_cast<int>(uv.y() * specularMap.height())
+        );
+
+        const float spec = std::pow(std::max(0.0f, dotProduct(R, V)), 10.0f) * (specData[0] / 255.0f);
+
+        constexpr float ambient = 0.3f;
+        const float totalIntensity = ambient + diffuse + spec;
+
         TGAColor texColor = diffuseMap.get(
                 static_cast<int>(uv.x() * diffuseMap.width()),
                 static_cast<int>(uv.y() * diffuseMap.height())
-                );
+        );
 
         for (int i = 0; i < 3; i++) {
             color[i] = (unsigned char)std::min(255.0f, texColor[i] * totalIntensity);
@@ -80,6 +90,7 @@ public:
 private:
     const TGAImage& diffuseMap;
     const TGAImage& normalMap;
+    const TGAImage& specularMap;
     const bool useAlphaTest;
 };
 

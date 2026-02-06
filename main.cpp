@@ -15,9 +15,9 @@ int main() {
     std::vector<ModelInstance> scene;
 
     std::string modelRoot = "../Models/obj/african_head/";
-    scene.emplace_back(modelRoot, "african_head.obj", "african_head_diffuse.tga", "african_head_nm.tga", false);
-    scene.emplace_back(modelRoot, "african_head_eye_inner.obj", "african_head_eye_inner_diffuse.tga", "african_head_eye_inner_nm.tga", false);
-    scene.emplace_back(modelRoot, "african_head_eye_outer.obj", "african_head_eye_outer_diffuse.tga", "african_head_eye_outer_nm.tga", true);
+    scene.emplace_back(modelRoot, "african_head.obj", "african_head_diffuse.tga", "african_head_nm_tangent.tga", "african_head_spec.tga", false);
+    scene.emplace_back(modelRoot, "african_head_eye_inner.obj", "african_head_eye_inner_diffuse.tga", "african_head_eye_inner_nm_tangent.tga", "african_head_eye_inner_spec.tga", false);
+    scene.emplace_back(modelRoot, "african_head_eye_outer.obj", "african_head_eye_outer_diffuse.tga", "african_head_eye_outer_nm_tangent.tga", "african_head_eye_outer_spec.tga", true);
 
     RendererTests::runVisualSuite(scene, width, height);
 

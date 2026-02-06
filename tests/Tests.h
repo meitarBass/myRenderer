@@ -27,7 +27,7 @@ public:
         const Vec3f eye(0, 0, 3);
         const Vec3f center(0, 0, 0);
         const Vec3f up(0, 1, 0);
-        const Vec3f lightDir = Vec3f(1, 1, 1).normalize();
+        const Vec3f lightDir = Vec3f(-1, -0.5, 1).normalize();
 
         auto Projection = Matrix4f4::projection(3);
         auto View       = Matrix4f4::viewport(width / 8, height / 8, width * 3 / 4, height * 3 / 4);
@@ -61,7 +61,7 @@ public:
                 };
 
 
-                auto shader = PhongShader(object.diffuse, object.normal, uniforms, object.useAlphaTest);
+                auto shader = PhongShader(object.diffuse, object.normal, object.specular, uniforms, object.useAlphaTest);
                 drawModel(ctx, shader);
             }
 
