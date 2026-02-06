@@ -39,42 +39,52 @@ public:
     const Vec2f uv = varyings.uv * w;
     const Vec3f worldPos = varyings.worldPos * w;
 
-    // --- חישוב צל (Shadow Calculation) ---
-        float shadowFactor = 1.0f;
+        // --- חישוב צל משודרג (PCF) ---
+        float shadowFactor = 1.0f; // ברירת מחדל: מואר
         if (uniforms.shadowMap) {
-            // 1. הטלה למרחב האור (בלי Viewport עדיין)
             Vec4f lightClip = uniforms.lightProjView * Vec4f(worldPos);
-
-            // 2. פרספקטיבה ידנית
             Vec3f lightNDC = Vec3f(lightClip.x(), lightClip.y(), lightClip.z()) / lightClip.w();
 
-            // 3. המרה ידנית מ-NDC (-1..1) לקואורדינטות טקסטורה (0..W, 0..H)
-            // הסבר: (NDC + 1) / 2 נותן טווח 0..1. ואז מכפילים ברוחב.
+            // המרה לקואורדינטות מפה
             float scX = (lightNDC.x() + 1.0f) * 0.5f * uniforms.shadowWidth;
             float scY = (lightNDC.y() + 1.0f) * 0.5f * uniforms.shadowHeight;
-            // את ה-Z אנחנו גם צריכים לנרמל לסקאלה של ה-ZBuffer שלך (תלוי איך Viewport מממש את זה)
-            // ה-Viewport שלך עושה: (z + 1) * 255/2. בואי נחקה את זה:
-            float currentDepth = (lightNDC.z() + 1.0f) * 0.5f * 255.0f; // הנחה שהעומק הוא 0-255
+            float currentDepth = (lightNDC.z() + 1.0f) * 0.5f * 255.0f;
 
-            int x = static_cast<int>(scX);
-            int y = static_cast<int>(scY);
+            float bias = 0.05f; // הערך שמצאת שעובד טוב
+            float shadowSum = 0.0f;
+            int sampleCount = 0;
 
-            if (x >= 0 && x < uniforms.shadowWidth && y >= 0 && y < uniforms.shadowHeight) {
-                int idx = x + y * uniforms.shadowWidth;
-                float closestDepth = (*uniforms.shadowMap)[idx];
+            // לולאת PCF: דוגמים 3x3 סביב הפיקסל
+            for (int yOffset = -1; yOffset <= 1; yOffset++) {
+                for (int xOffset = -1; xOffset <= 1; xOffset++) {
 
-                // תיקון הלוגיקה!
-                // אצלך: מספר גדול = קרוב. מספר קטן = רחוק.
-                // אנחנו בצל אם אנחנו "מאחורי" מה ששמור במפה.
-                // כלומר: currentDepth (שלי) < closestDepth (המחסום)
+                    int sampleX = static_cast<int>(scX) + xOffset;
+                    int sampleY = static_cast<int>(scY) + yOffset;
 
-                float bias = 0.5f;
-                if (currentDepth < closestDepth - bias) {
-                    shadowFactor = 0.0f; // אני רחוק יותר -> אני בצל
+                    // בדיקת גבולות (שלא נחרוג מהמערך ונקרוס)
+                    if (sampleX >= 0 && sampleX < uniforms.shadowWidth &&
+                        sampleY >= 0 && sampleY < uniforms.shadowHeight) {
+
+                        int idx = sampleX + sampleY * uniforms.shadowWidth;
+                        float closestDepth = (*uniforms.shadowMap)[idx];
+
+                        // אם הדגימה הזו בצל, נוסיף 0. אם היא באור, נוסיף 1
+                        if (currentDepth < closestDepth - bias) {
+                            shadowSum += 0.0f; // בצל
+                        } else {
+                            shadowSum += 1.0f; // באור
+                        }
+                        sampleCount++;
+                        }
                 }
             }
+
+            // הממוצע הוא עוצמת הצל הסופית
+            if (sampleCount > 0) {
+                shadowFactor = shadowSum / static_cast<float>(sampleCount);
+            }
         }
-    // -------------------------------------
+        // -------------------------------------
 
     const Vec3f N = varyings.normal.normalize();
     const Vec3f T = varyings.tangent.normalize();
