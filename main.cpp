@@ -25,15 +25,15 @@ bool scene1() {
 
     scene.addModel(diabloModel);
 
-    diabloModel.rotation = {0, -40, 0};
+    diabloModel.rotation = {0, -50, 0};
     diabloModel.scale = {0.45, 0.45, 0.45};
-    diabloModel.position = {1.3, -0.46, -2.4};
+    diabloModel.position = {1.3, -0.53, -2.8};
 
     scene.addModel(diabloModel);
 
     diabloModel.rotation = {0, 100, 0};
     diabloModel.scale = {0.35, 0.35, 0.35};
-    diabloModel.position = {-1.15, -0.54, -0.1};
+    diabloModel.position = {-1.15, -0.60, -0.1};
 
     scene.addModel(diabloModel);
 
