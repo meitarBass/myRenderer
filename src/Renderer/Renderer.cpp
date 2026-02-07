@@ -4,8 +4,7 @@
 #include <iostream>
 
 void Renderer::render(const Scene& scene, RenderBuffers& target) {
-    const Vec3f lightPos = Vec3f(1, 1, 1).normalize() * 3.0f;
-    const Matrix4f4 lightView = Matrix4f4::lookat(lightPos, scene.camera.lookAt, scene.camera.up);
+    const Matrix4f4 lightView = Matrix4f4::lookat(scene.lightPos, scene.camera.lookAt, scene.camera.up);
     const Matrix4f4 lightProj = Matrix4f4::projection(3.0f);
 
     const Matrix4f4 lightProjView = lightProj * lightView;
@@ -136,7 +135,7 @@ std::vector<float> Renderer::computeSSAO(const std::vector<float>& zbuffer,
     }
 
     constexpr float strength = 2.0f;
-    constexpr float bias = 0.025f;
+    constexpr float bias = 0.12f;
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {

@@ -77,8 +77,13 @@ public:
         return mat;
     }
 
-    static Matrix<float, 4, 4> scale(float factor) {
-        Matrix mat{factor};
+    static Matrix<float, 4, 4> scale(float sx, float sy, float sz) {
+        auto mat = Matrix<float, 4, 4>::identity();
+
+        mat[0][0] = sx;
+        mat[1][1] = sy;
+        mat[2][2] = sz;
+
         return mat;
     }
 

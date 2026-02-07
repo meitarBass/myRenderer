@@ -58,7 +58,7 @@ bool PhongShader::fragment(const Varyings &varyings, TGAColor &color) {
         static_cast<int>(uv.y() * diffuseMap.height())
     );
 
-    constexpr float ambient = 0.2f;
+    constexpr float ambient = 0.3f;
     const float totalIntensity = ambient + diffuseIntensity + specIntensity;
 
     for (int i = 0; i < 3; i++) {

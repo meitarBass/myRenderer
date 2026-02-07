@@ -35,7 +35,7 @@ struct ModelInstance {
 
     Matrix4f4 getModelMatrix() const {
         const Matrix4f4 T = Matrix4f4::translation(position);
-        const Matrix4f4 S = Matrix4f4::scale(scale.x()); // Using the same scale in each axis
+        const Matrix4f4 S = Matrix4f4::scale(scale.x(), scale.y(), scale.z());
 
         // Rotation Order: Z -> Y -> X
         const Matrix4f4 Rx = Matrix4f4::rotationX(rotation.x());

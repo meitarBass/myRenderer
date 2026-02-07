@@ -11,8 +11,10 @@ struct Scene {
 
     Vec3f lightDir;
     Vec3f lightColor = { 1, 1, 1};
+    Vec3f lightPos = { 1, 1, 1 };
 
-    Scene(const Camera& cam, const Vec3f& lightDir) : camera(cam), lightDir(lightDir) {}
+    Scene(const Camera& cam, const Vec3f& lightDir, const Vec3f& lightPos)
+        : camera(cam), lightDir(lightDir), lightPos(lightPos) {}
 
     void addModel(const ModelInstance& model) {
         models.push_back(model);
