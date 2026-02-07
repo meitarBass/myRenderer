@@ -20,7 +20,8 @@ int main() {
     constexpr std::string floorRoot = "../Models/obj/";
 
     auto diabloModel = ModelInstance(diabloRoot, "diablo3_pose.obj", "diablo3_pose_diffuse.tga", "diablo3_pose_nm_tangent.tga", "diablo3_pose_spec.tga", false);
-    diabloModel.rotation = {0, 30, 0};
+    diabloModel.rotation = {10, 30, 0};
+    // diabloModel.position = {0.2, -0.05, 0};
     auto floorModel = ModelInstance(floorRoot, "floor.obj", "floor_diffuse.tga", "floor_nm_tangent.tga", "floor_spec.tga", false);
 
     scene.addModel(diabloModel);
@@ -29,7 +30,7 @@ int main() {
     Renderer re = {};
     re.render(scene, rb);
 
-    rb.framebuffer.write_tga_file("diablo_scene.tga");
+    bool res = rb.framebuffer.write_tga_file("diablo2_scene.tga");
     std::cout << "Done! Saved diablo_scene.tga" << std::endl;
 
     return 0;

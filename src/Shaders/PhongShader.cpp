@@ -74,23 +74,24 @@ float PhongShader::calculateShadowFactor(const Vec3f& worldPos) const {
     Vec4f lightClip = uniforms.lightProjView * Vec4f(worldPos);
     Vec3f lightNDC = Vec3f(lightClip.x(), lightClip.y(), lightClip.z()) / lightClip.w();
 
-    float scX = (lightNDC.x() + 1.0f) * 0.5f * uniforms.shadowWidth;
-    float scY = (lightNDC.y() + 1.0f) * 0.5f * uniforms.shadowHeight;
-    float currentDepth = (lightNDC.z() + 1.0f) * 0.5f * 255.0f;
+    const float scX = (lightNDC.x() + 1.0f) * 0.5f * uniforms.shadowWidth;
+    const float scY = (lightNDC.y() + 1.0f) * 0.5f * uniforms.shadowHeight;
+    const float currentDepth = (lightNDC.z() + 1.0f) * 0.5f;
+    constexpr float bias = 0.005f;
 
-    float bias = 0.5f;
     float shadowSum = 0.0f;
     int sampleCount = 0;
 
     for (int yOffset = -1; yOffset <= 1; yOffset++) {
         for (int xOffset = -1; xOffset <= 1; xOffset++) {
-            int sampleX = static_cast<int>(scX) + xOffset;
-            int sampleY = static_cast<int>(scY) + yOffset;
+            const int sampleX = static_cast<int>(scX) + xOffset;
+            const int sampleY = static_cast<int>(scY) + yOffset;
 
             if (sampleX >= 0 && sampleX < uniforms.shadowWidth &&
                 sampleY >= 0 && sampleY < uniforms.shadowHeight) {
-                int idx = sampleX + sampleY * uniforms.shadowWidth;
-                float closestDepth = (*uniforms.shadowMap)[idx];
+                const int idx = sampleX + sampleY * uniforms.shadowWidth;
+                const float closestDepth = (*uniforms.shadowMap)[idx];
+
                 shadowSum += (currentDepth < closestDepth - bias) ? 0.0f : 1.0f;
                 sampleCount++;
             }

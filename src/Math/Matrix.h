@@ -159,13 +159,15 @@ public:
 
     static Matrix<float, 4, 4> viewport(float x, float y, float w, float h) {
         auto m = Matrix<float, 4, 4>::identity();
-        m[3][0] = x + w / 2.f;
-        m[3][1] = y + h / 2.f;
-        m[3][2] = 255.f / 2.f;
 
         m[0][0] = w / 2.f;
         m[1][1] = h / 2.f;
-        m[2][2] = 255.f / 2.f;
+        m[2][2] = 0.5;
+
+        m[3][0] = x + w / 2.f;
+        m[3][1] = y + h / 2.f;
+        m[3][2] = 0.5;
+
         return m;
     }
 

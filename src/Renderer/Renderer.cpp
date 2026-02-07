@@ -102,45 +102,78 @@ void Renderer::applySSAO(RenderBuffers& target) {
     }
 }
 
+float linearInterpolation(float a, float b, float f) {
+    return a + f * (b - a);
+}
+
 std::vector<float> Renderer::computeSSAO(const std::vector<float>& zbuffer,
                                          const std::vector<Vec3f>& normalBuffer,
                                          int width, int height) {
     std::vector<float> occlusionBuffer(width * height, 0.0f);
 
+    static std::vector<Vec2f> kernel;
+    static std::vector<Vec2f> noise;
+    constexpr int kernelSizePixels = 10;
+    constexpr int pixelSamples = 16;
+
+    if (kernel.empty()) {
+        std::cout << "Initializing SSAO Kernel..." << std::endl;
+        for (int i = 0; i < pixelSamples; ++i) {
+            Vec2f sample(randf() * 2.0f - 1.0f, randf() * 2.0f - 1.0f);
+            sample = sample.normalize();
+
+            float scale = float(i) / float(pixelSamples);
+            scale = linearInterpolation(0.1f, 1.0f, scale * scale);
+            sample = sample * scale;
+
+            kernel.push_back(sample);
+        }
+
+        for (int i = 0; i < 16; i++) {
+            Vec2f rot(randf() * 2.0f - 1.0f, randf() * 2.0f - 1.0f);
+            noise.push_back(rot.normalize());
+        }
+    }
+
+    constexpr float strength = 2.0f;
+    constexpr float bias = 0.025f;
+
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            constexpr int pixelSamples = 16;
             const int idx = x + y * width;
             const float currentZ = zbuffer[idx];
-            constexpr float strength = 2.0f;
 
             if (currentZ < -10000.0f) continue;
 
             float occlusion = 0.0f;
-            int samples = 0;
+
+            int noiseIdx = (x % 4) + (y % 4) * 4;
+            Vec2f rotation = noise[noiseIdx];
+
+            float cosTheta = rotation.x();
+            float sinTheta = rotation.y();
 
             for (int i = 0; i < pixelSamples; i++) {
-                constexpr int kernelSize = 10;
-                float r = randf() * kernelSize;
-                float angle = randf() * 2.0f * GraphicsUtils::PI;
+                Vec2f k = kernel[i];
+                Vec2f rotatedSample;
+                rotatedSample.x() = k.x() * cosTheta - k.y() * sinTheta;
+                rotatedSample.y() = k.x() * sinTheta + k.y() * cosTheta;
 
-                int sampleX = x + static_cast<int>(r * cos(angle));
-                int sampleY = y + static_cast<int>(r * sin(angle));
+                int sampleX = x + static_cast<int>(rotatedSample.x() * kernelSizePixels);
+                int sampleY = y + static_cast<int>(rotatedSample.y() * kernelSizePixels);
 
                 if (sampleX >= 0 && sampleX < width && sampleY >= 0 && sampleY < height) {
-                    constexpr float bias = 5.0f;
                     int sampleIdx = sampleX + sampleY * width;
                     float sampleZ = zbuffer[sampleIdx];
 
                     if (sampleZ > currentZ + bias) {
-                        if (std::abs(currentZ - sampleZ) < 50.0f) {
-                            occlusion += 1.0f;
-                        }
+                        float rangeCheck = std::abs(currentZ - sampleZ) < 50.0f ? 1.0f : 0.0f;
+                        occlusion += 1.0f * rangeCheck;
                     }
                 }
-                samples++;
             }
-            occlusion = (occlusion / samples) * strength;
+
+            occlusion = (occlusion / pixelSamples) * strength;
             if (occlusion > 1.0f) occlusion = 1.0f;
             occlusionBuffer[idx] = 1.0f - occlusion;
         }
