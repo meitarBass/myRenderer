@@ -68,40 +68,58 @@ public:
         return Matrix<T, M, N>{1};
     }
 
-    static Matrix<float, 4, 4> translation(Vec3f v) {
-        Matrix<float, 4, 4> mat{1};
-        mat[3].x() = v.x();
-        mat[3].y() = v.y();
-        mat[3].z() = v.z();
+    static Matrix<float, 4, 4> translation(const Vec3f& v) {
+        Matrix<float, 4, 4> mat;
+
+        mat[0][0] = 1.0f;
+        mat[1][1] = 1.0f;
+        mat[2][2] = 1.0f;
+        mat[3][3] = 1.0f;
+
+        mat[3][0] = v.x();
+        mat[3][1] = v.y();
+        mat[3][2] = v.z();
 
         return mat;
     }
 
-    static Matrix<float, 4, 4> scale(float sx, float sy, float sz) {
-        auto mat = Matrix<float, 4, 4>::identity();
+    static Matrix<float, 4, 4> scale(const float sx, const float sy, const float sz) {
+
+        Matrix<float, 4, 4> mat;
 
         mat[0][0] = sx;
         mat[1][1] = sy;
         mat[2][2] = sz;
+        mat[3][3] = 1.0f;
 
         return mat;
     }
 
-    static Matrix<float, 4, 4> lookat(Vec3f eye, Vec3f center, Vec3f up) {
+    static Matrix<float, 4, 4> lookat(const Vec3f& eye, const Vec3f& center, const Vec3f& up) {
         Vec3f z = (eye - center).normalize();
         Vec3f x = cross(up, z).normalize();
         Vec3f y = cross(z, x).normalize();
 
-        auto matrixInverse = Matrix<float, 4, 4>::identity();
-        auto translation = Matrix<float, 4, 4>::identity();
+        Matrix<float, 4, 4> res;
 
-        for (int i = 0; i < 3; i++) {
-            matrixInverse[i][0] = x[i];
-            matrixInverse[i][1] = y[i];
-            matrixInverse[i][2] = z[i];
-            translation[3][i] = -eye[i];
-        }
-        return matrixInverse * translation;
+        res[0][0] = x.x();
+        res[1][0] = x.y();
+        res[2][0] = x.z();
+
+        res[0][1] = y.x();
+        res[1][1] = y.y();
+        res[2][1] = y.z();
+
+        res[0][2] = z.x();
+        res[1][2] = z.y();
+        res[2][2] = z.z();
+
+        res[3][3] = 1.0f;
+        res[3][0] = -dotProduct(x, eye);
+        res[3][1] = -dotProduct(y, eye);
+        res[3][2] = -dotProduct(z, eye);
+
+        return res;
     }
 
     static Matrix<float, 4, 4> projection(float cameraDist) {
@@ -115,9 +133,10 @@ public:
         static_assert(N == M && N == 4);
         angle = GraphicsUtils::angleToRadians(angle);
 
-        auto res = Matrix<float, 4, 4>::identity();
-        float s = std::sin(angle);
-        float c = std::cos(angle);
+        Matrix<float, 4, 4> res;
+        const float s = std::sin(angle);
+        const float c = std::cos(angle);
+        res[0][0] = 1.0f; res[3][3] = 1.0f;
         res[1][1] = c;  res[2][1] = -s;
         res[1][2] = s; res[2][2] = c;
         return res;
@@ -127,9 +146,11 @@ public:
         static_assert(N == M && N == 4);
         angle = GraphicsUtils::angleToRadians(angle);
 
-        auto res = Matrix<float, 4, 4>::identity();
-        float s = std::sin(angle);
-        float c = std::cos(angle);
+
+        Matrix<float, 4, 4> res;
+        const float s = std::sin(angle);
+        const float c = std::cos(angle);
+        res[1][1] = 1.0f; res[3][3] = 1.0f;
         res[0][0] = c;  res[2][0] = s;
         res[0][2] = -s; res[2][2] = c;
         return res;
@@ -140,18 +161,20 @@ public:
         static_assert(N == M && N == 4);
         angle = GraphicsUtils::angleToRadians(angle);
 
-        auto res = Matrix<float, 4, 4>::identity();
-        float s = std::sin(angle);
-        float c = std::cos(angle);
+        Matrix<float, 4, 4> res;
+        const float s = std::sin(angle);
+        const float c = std::cos(angle);
+        res[2][2] = 1.0f; res[3][3] = 1.0f;
         res[0][0] = c; res[1][0] = -s;
         res[0][1] = s; res[1][1] = c;
         return res;
     }
 
-    static Matrix<float, 4, 4> shear(float xy, float xz,
-                                     float yx, float yz,
-                                     float zx, float zy) {
-        auto res = Matrix<float, 4, 4>::identity();
+    static Matrix<float, 4, 4> shear(const float xy, const float xz,
+                                     const float yx, const float yz,
+                                     const float zx, const float zy) {
+        Matrix<float, 4, 4> res;
+        res[0][0] = 1.0f; res[1][1] = 1.0f, res[2][2] = 1.0f, res[3][3] = 1.0f;
         res[1][0] = xy;
         res[2][0] = xz;
         res[0][1] = yx;
@@ -162,8 +185,8 @@ public:
         return res;
     }
 
-    static Matrix<float, 4, 4> viewport(float x, float y, float w, float h) {
-        auto m = Matrix<float, 4, 4>::identity();
+    static Matrix<float, 4, 4> viewport(const float x, const  float y, const float w, const float h) {
+        Matrix<float, 4, 4> m;
 
         m[0][0] = w / 2.f;
         m[1][1] = h / 2.f;
@@ -172,6 +195,7 @@ public:
         m[3][0] = x + w / 2.f;
         m[3][1] = y + h / 2.f;
         m[3][2] = 0.5;
+        m[3][3] = 1.0;
 
         return m;
     }

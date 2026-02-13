@@ -1,5 +1,4 @@
 #include <iostream>
-#include <vector>
 #include "src/Core/ModelInstance.h"
 #include "src/Renderer/Renderer.h"
 #include "tests/RendererUnitTests.h"
