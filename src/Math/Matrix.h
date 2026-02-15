@@ -129,6 +129,20 @@ public:
         return res;
     }
 
+    static Matrix<float, 4, 4> perspective(float fovy, float aspect, float near, float far) {
+        float angle = GraphicsUtils::angleToRadians(fovy);
+        float f = 1.0f / std::tan(angle / 2.0f);
+        Matrix<float, 4, 4> res(0);
+
+        res[0][0] = f / aspect;
+        res[1][1] = f;
+        res[2][2] = (far + near) / (near - far);
+        res[2][3] = -1.0f;
+        res[3][2] = (2.0f * far * near) / (near - far);
+
+        return res;
+    }
+
     static Matrix<float, 4, 4> rotationX(float angle) {
         static_assert(N == M && N == 4);
         angle = GraphicsUtils::angleToRadians(angle);
