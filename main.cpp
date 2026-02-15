@@ -38,7 +38,7 @@ bool scene1() {
 
     auto head = ModelInstance(headRoot , "african_head.obj", "african_head_diffuse.tga", "african_head_nm_tangent.tga", "african_head_spec.tga", false);
     auto eyes_in = ModelInstance(headRoot , "african_head_eye_inner.obj", "african_head_eye_inner_diffuse.tga", "african_head_eye_inner_nm_tangent.tga", "african_head_eye_inner_spec.tga", false);
-    head.rotation = {-20, 10, 0};
+    head.rotation = {-20, 10,0 };
     eyes_in.rotation = {-20, 10, 0};
 
     head.scale = {0.6, 0.6, 0.6};

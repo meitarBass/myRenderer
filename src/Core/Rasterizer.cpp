@@ -46,8 +46,8 @@ void drawTriangle(const Varyings varyings[3], IShader &shader, const RenderConte
     Vec3f pts[3] = { varyings[0].screenPos, varyings[1].screenPos, varyings[2].screenPos };
     BBox bbox = computeTriangleBBox(pts);
 
-    const int width = ctx.framebuffer.width();
-    const int height = ctx.framebuffer.height();
+    const int width = ctx.width;
+    const int height = ctx.height;
 
     const int minX = std::max(0, (int)bbox._boxMin.x());
     const int maxX = std::min(width - 1, (int)bbox._boxMax.x());
@@ -67,12 +67,19 @@ void drawTriangle(const Varyings varyings[3], IShader &shader, const RenderConte
             const int index = x + y * width;
 
             if (ctx.zbuffer[index] < z) {
-                Varyings pixelVaryings = IShader::interpolate(varyings[0], varyings[1], varyings[2], bc);
+                bool discard = false;
                 TGAColor color;
-                bool discard = shader.fragment(pixelVaryings, color);
+
+                if (ctx.framebuffer) {
+                    Varyings pixelVaryings = IShader::interpolate(varyings[0], varyings[1], varyings[2], bc);
+                    discard = shader.fragment(pixelVaryings, color);
+                }
+
                 if (!discard) {
                     ctx.zbuffer[index] = z;
-                    ctx.framebuffer.set(x, y, color);
+                    if (ctx.framebuffer) {
+                        ctx.framebuffer->set(x, y, color);
+                    }
                     if (ctx.normalBuffer) {
                         (*ctx.normalBuffer)[index] = shader.outNormal;
                     }
@@ -95,7 +102,7 @@ void drawTriangleClipped(const Varyings varyings[3], IShader &shader, const Rend
 
     if (minX > maxX || minY > maxY) return;
 
-    const int width = ctx.framebuffer.width();
+    const int width = ctx.width;
 
     for (int x = minX; x <= maxX; x++) {
         for (int y = minY; y <= maxY; y++) {
@@ -110,13 +117,19 @@ void drawTriangleClipped(const Varyings varyings[3], IShader &shader, const Rend
             const int index = x + y * width;
 
             if (ctx.zbuffer[index] < z) {
-                Varyings pixelVaryings = IShader::interpolate(varyings[0], varyings[1], varyings[2], bc);
+                bool discard = false;
                 TGAColor color;
-                bool discard = shader.fragment(pixelVaryings, color);
+
+                if (ctx.framebuffer) {
+                    Varyings pixelVaryings = IShader::interpolate(varyings[0], varyings[1], varyings[2], bc);
+                    discard = shader.fragment(pixelVaryings, color);
+                }
 
                 if (!discard) {
                     ctx.zbuffer[index] = z;
-                    ctx.framebuffer.set(x, y, color);
+                    if (ctx.framebuffer) {
+                        ctx.framebuffer->set(x, y, color);
+                    }
                     if (ctx.normalBuffer) {
                         (*ctx.normalBuffer)[index] = shader.outNormal;
                     }
@@ -148,8 +161,8 @@ std::pair<Vec3f, Vec3f> calculateTriangleBasis(const Vec3f pts[3], const Vec2f u
 }
 
 void drawModel(const RenderContext &ctx, IShader& shader) {
-    const int width = ctx.framebuffer.width();
-    const int height = ctx.framebuffer.height();
+    const int width = ctx.width;
+    const int height = ctx.height;
 
     const int numTilesX = (width + TILE_SIZE - 1) / TILE_SIZE;
     const int numTilesY = (height + TILE_SIZE - 1) / TILE_SIZE;

@@ -30,7 +30,6 @@ void Renderer::runShadowPass(const Scene& scene,
     constexpr int shadowW = 2048;
     constexpr int shadowH = 2048;
 
-    TGAImage dummyImage(shadowW, shadowH, TGAImage::RGB);
     const Matrix4f4 lightViewport = Matrix4f4::viewport(0, 0, shadowW, shadowH);
 
     for (const auto& object : scene.models) {
@@ -43,7 +42,7 @@ void Renderer::runShadowPass(const Scene& scene,
 
         DepthShader depthShader(depthUniforms);
 
-        RenderContext ctx = { object.model, dummyImage, shadowMap, nullptr };
+        RenderContext ctx = { object.model, shadowMap, nullptr, nullptr, shadowW, shadowH };
         drawModel(ctx, depthShader);
     }
 }
@@ -79,7 +78,7 @@ void Renderer::runColorPass(const Scene& scene,
 
         PhongShader shader(object.diffuse, object.normal, object.specular, uniforms, object.useAlphaTest);
 
-        RenderContext ctx = { object.model, target.framebuffer, target.zbuffer, &target.normalBuffer };
+        RenderContext ctx = { object.model, target.zbuffer, &target.framebuffer, &target.normalBuffer, width, height };
         drawModel(ctx, shader);
     }
 }
