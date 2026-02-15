@@ -32,10 +32,11 @@ private:
                       const std::vector<float>& shadowMap, const Matrix4f4& lightProjView);
 
     void applySSAO(RenderBuffers& target);
-
-    std::vector<float> computeSSAO(const std::vector<float>& zbuffer,
-                                   const std::vector<Vec3f>& normalBuffer,
-                                   int width, int height);
+    inline void processPixelSSAO(int x, int y, int width, int height,
+                                       const std::vector<float>& zbuffer,
+                                       TGAImage& framebuffer,
+                                       const std::vector<Vec2f>& kernel,
+                                       const std::vector<Vec2f>& noise);
 
     static inline float randf() {
         return static_cast<float>(rand()) / static_cast<float>(RAND_MAX);

@@ -2,6 +2,7 @@
 #include "../Shaders/PhongShader.h"
 #include "../Shaders/DepthShader.h"
 #include <iostream>
+#include <thread>
 
 void Renderer::render(const Scene& scene, RenderBuffers& target) {
     const Matrix4f4 lightView = Matrix4f4::lookat(scene.lightPos, scene.camera.lookAt, scene.camera.up);
@@ -83,99 +84,103 @@ void Renderer::runColorPass(const Scene& scene,
     }
 }
 
-void Renderer::applySSAO(RenderBuffers& target) {
-    const int width = target.framebuffer.width();
-    const int height = target.framebuffer.height();
-
-    const auto ssaoMap = computeSSAO(target.zbuffer, target.normalBuffer, width, height);
-
-    for (int x = 0; x < width; x++) {
-        for (int y = 0; y < height; y++) {
-            TGAColor c = target.framebuffer.get(x, y);
-            const float intensity = ssaoMap[x + y * width];
-            for (int i = 0; i < 3; i++) {
-                c[i] = static_cast<unsigned char>(c[i] * intensity);
-            }
-            target.framebuffer.set(x, y, c);
-        }
-    }
-}
-
 float linearInterpolation(float a, float b, float f) {
     return a + f * (b - a);
 }
 
-std::vector<float> Renderer::computeSSAO(const std::vector<float>& zbuffer,
-                                         const std::vector<Vec3f>& normalBuffer,
-                                         int width, int height) {
-    std::vector<float> occlusionBuffer(width * height, 0.0f);
+inline void Renderer::processPixelSSAO(int x, int y, int width, int height,
+                                       const std::vector<float>& zbuffer,
+                                       TGAImage& framebuffer,
+                                       const std::vector<Vec2f>& kernel,
+                                       const std::vector<Vec2f>& noise) {
+    const int idx = x + y * width;
+    const float currentZ = zbuffer[idx];
 
-    static std::vector<Vec2f> kernel;
-    static std::vector<Vec2f> noise;
+    if (currentZ < -10000.0f) return;
+
+    constexpr float strength = 2.0f;
+    constexpr float bias = 0.12f;
     constexpr int kernelSizePixels = 10;
     constexpr int pixelSamples = 16;
 
+    float occlusion = 0.0f;
+    int noiseIdx = (x % 4) + (y % 4) * 4;
+    Vec2f rotation = noise[noiseIdx];
+
+    float cosTheta = rotation.x();
+    float sinTheta = rotation.y();
+
+    for (int i = 0; i < pixelSamples; i++) {
+        Vec2f k = kernel[i];
+        Vec2f rotatedSample;
+        rotatedSample.x() = k.x() * cosTheta - k.y() * sinTheta;
+        rotatedSample.y() = k.x() * sinTheta + k.y() * cosTheta;
+
+        int sampleX = x + static_cast<int>(rotatedSample.x() * kernelSizePixels);
+        int sampleY = y + static_cast<int>(rotatedSample.y() * kernelSizePixels);
+
+        if (sampleX >= 0 && sampleX < width && sampleY >= 0 && sampleY < height) {
+            float sampleZ = zbuffer[sampleX + sampleY * width];
+            if (sampleZ > currentZ + bias) {
+                float rangeCheck = std::abs(currentZ - sampleZ) < 50.0f ? 1.0f : 0.0f;
+                occlusion += 1.0f * rangeCheck;
+            }
+        }
+    }
+
+    occlusion = (occlusion / pixelSamples) * strength;
+    if (occlusion > 1.0f) occlusion = 1.0f;
+    float intensity = 1.0f - occlusion;
+
+    TGAColor c = framebuffer.get(x, y);
+    for (int i = 0; i < 3; i++) {
+        c[i] = static_cast<unsigned char>(c[i] * intensity);
+    }
+    framebuffer.set(x, y, c);
+}
+
+void Renderer::applySSAO(RenderBuffers& target) {
+    const int width = target.framebuffer.width();
+    const int height = target.framebuffer.height();
+
+    static std::vector<Vec2f> kernel;
+    static std::vector<Vec2f> noise;
+
     if (kernel.empty()) {
-        std::cout << "Initializing SSAO Kernel..." << std::endl;
+        constexpr int pixelSamples = 16;
         for (int i = 0; i < pixelSamples; ++i) {
             Vec2f sample(randf() * 2.0f - 1.0f, randf() * 2.0f - 1.0f);
             sample = sample.normalize();
-
             float scale = float(i) / float(pixelSamples);
             scale = linearInterpolation(0.1f, 1.0f, scale * scale);
-            sample = sample * scale;
-
-            kernel.push_back(sample);
+            kernel.push_back(sample * scale);
         }
-
         for (int i = 0; i < 16; i++) {
             Vec2f rot(randf() * 2.0f - 1.0f, randf() * 2.0f - 1.0f);
             noise.push_back(rot.normalize());
         }
     }
 
-    constexpr float strength = 2.0f;
-    constexpr float bias = 0.12f;
+    unsigned int numThreads = std::thread::hardware_concurrency();
+    if (numThreads == 0) numThreads = 4;
 
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            const int idx = x + y * width;
-            const float currentZ = zbuffer[idx];
+    std::vector<std::thread> threads;
+    int rowsPerThread = height / numThreads;
 
-            if (currentZ < -10000.0f) continue;
+    for (int t = 0; t < numThreads; ++t) {
+        threads.emplace_back([&, t]() {
+            int startY = t * rowsPerThread;
+            int endY = (t == numThreads - 1) ? height : (t + 1) * rowsPerThread;
 
-            float occlusion = 0.0f;
-
-            int noiseIdx = (x % 4) + (y % 4) * 4;
-            Vec2f rotation = noise[noiseIdx];
-
-            float cosTheta = rotation.x();
-            float sinTheta = rotation.y();
-
-            for (int i = 0; i < pixelSamples; i++) {
-                Vec2f k = kernel[i];
-                Vec2f rotatedSample;
-                rotatedSample.x() = k.x() * cosTheta - k.y() * sinTheta;
-                rotatedSample.y() = k.x() * sinTheta + k.y() * cosTheta;
-
-                int sampleX = x + static_cast<int>(rotatedSample.x() * kernelSizePixels);
-                int sampleY = y + static_cast<int>(rotatedSample.y() * kernelSizePixels);
-
-                if (sampleX >= 0 && sampleX < width && sampleY >= 0 && sampleY < height) {
-                    int sampleIdx = sampleX + sampleY * width;
-                    float sampleZ = zbuffer[sampleIdx];
-
-                    if (sampleZ > currentZ + bias) {
-                        float rangeCheck = std::abs(currentZ - sampleZ) < 50.0f ? 1.0f : 0.0f;
-                        occlusion += 1.0f * rangeCheck;
-                    }
+            for (int y = startY; y < endY; y++) {
+                for (int x = 0; x < width; x++) {
+                    processPixelSSAO(x, y, width, height, target.zbuffer, target.framebuffer, kernel, noise);
                 }
             }
-
-            occlusion = (occlusion / pixelSamples) * strength;
-            if (occlusion > 1.0f) occlusion = 1.0f;
-            occlusionBuffer[idx] = 1.0f - occlusion;
-        }
+        });
     }
-    return occlusionBuffer;
+
+    for (auto& worker : threads) {
+        worker.join();
+    }
 }
