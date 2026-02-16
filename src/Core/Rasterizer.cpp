@@ -42,70 +42,20 @@ BBox computeTriangleBBox(const Vec3f pts[3]) {
     return { Point3(minVal.x(), minVal.y(), 0), Point3(maxVal.x(), maxVal.y(), 0) };
 }
 
-void drawTriangle(const Varyings varyings[3], IShader &shader, const RenderContext &ctx) {
-    Vec3f pts[3] = { varyings[0].screenPos, varyings[1].screenPos, varyings[2].screenPos };
-    BBox bbox = computeTriangleBBox(pts);
-
-    const int width = ctx.width;
-    const int height = ctx.height;
-
-    const int minX = std::max(0, (int)bbox._boxMin.x());
-    const int maxX = std::min(width - 1, (int)bbox._boxMax.x());
-    const int minY = std::max(0, (int)bbox._boxMin.y());
-    const int maxY = std::min(height - 1, (int)bbox._boxMax.y());
-
-    for (int x = minX; x <= maxX; x++) {
-        for (int y = minY; y <= maxY; y++) {
-            Vec3f bc = barycentric(Vec2f(pts[0].x(), pts[0].y()),
-                                   Vec2f(pts[1].x(), pts[1].y()),
-                                   Vec2f(pts[2].x(), pts[2].y()),
-                                   Vec2f(x, y));
-
-            if (bc.x() < 0 || bc.y() < 0 || bc.z() < 0) continue;
-
-            const float z = pts[0].z() * bc.x() + pts[1].z() * bc.y() + pts[2].z() * bc.z();
-            const int index = x + y * width;
-
-            if (ctx.zbuffer[index] < z) {
-                bool discard = false;
-                TGAColor color;
-
-                if (ctx.framebuffer) {
-                    Varyings pixelVaryings = IShader::interpolate(varyings[0], varyings[1], varyings[2], bc);
-                    discard = shader.fragment(pixelVaryings, color);
-                }
-
-                if (!discard) {
-                    ctx.zbuffer[index] = z;
-                    if (ctx.framebuffer) {
-                        ctx.framebuffer->set(x, y, color);
-                    }
-                    if (ctx.normalBuffer) {
-                        (*ctx.normalBuffer)[index] = shader.outNormal;
-                    }
-                }
-            }
-        }
-    }
-}
-
 void drawTriangleClipped(const Varyings varyings[3], IShader &shader, const RenderContext &ctx,
                          int tileMinX, int tileMinY, int tileMaxX, int tileMaxY) {
-
     Vec3f pts[3] = { varyings[0].screenPos, varyings[1].screenPos, varyings[2].screenPos };
     BBox bbox = computeTriangleBBox(pts);
 
-    const int minX = std::max(tileMinX, (int)bbox._boxMin.x());
-    const int maxX = std::min(tileMaxX, (int)bbox._boxMax.x());
-    const int minY = std::max(tileMinY, (int)bbox._boxMin.y());
-    const int maxY = std::min(tileMaxY, (int)bbox._boxMax.y());
+    int minX = std::max(tileMinX, (int)bbox._boxMin.x());
+    int maxX = std::min(tileMaxX, (int)bbox._boxMax.x());
+    int minY = std::max(tileMinY, (int)bbox._boxMin.y());
+    int maxY = std::min(tileMaxY, (int)bbox._boxMax.y());
 
     if (minX > maxX || minY > maxY) return;
 
-    const int width = ctx.width;
-
-    for (int x = minX; x <= maxX; x++) {
-        for (int y = minY; y <= maxY; y++) {
+    for (int y = minY; y <= maxY; y++) {
+        for (int x = minX; x <= maxX; x++) {
             Vec3f bc = barycentric(Vec2f(pts[0].x(), pts[0].y()),
                                    Vec2f(pts[1].x(), pts[1].y()),
                                    Vec2f(pts[2].x(), pts[2].y()),
@@ -113,26 +63,16 @@ void drawTriangleClipped(const Varyings varyings[3], IShader &shader, const Rend
 
             if (bc.x() < 0 || bc.y() < 0 || bc.z() < 0) continue;
 
-            const float z = pts[0].z() * bc.x() + pts[1].z() * bc.y() + pts[2].z() * bc.z();
-            const int index = x + y * width;
+            float z = pts[0].z() * bc.x() + pts[1].z() * bc.y() + pts[2].z() * bc.z();
+            int index = x + y * ctx.width;
 
             if (ctx.zbuffer[index] < z) {
-                bool discard = false;
                 TGAColor color;
-
-                if (ctx.framebuffer) {
-                    Varyings pixelVaryings = IShader::interpolate(varyings[0], varyings[1], varyings[2], bc);
-                    discard = shader.fragment(pixelVaryings, color);
-                }
-
-                if (!discard) {
+                Varyings pixelVaryings = IShader::interpolate(varyings[0], varyings[1], varyings[2], bc);
+                if (!shader.fragment(pixelVaryings, color)) {
                     ctx.zbuffer[index] = z;
-                    if (ctx.framebuffer) {
-                        ctx.framebuffer->set(x, y, color);
-                    }
-                    if (ctx.normalBuffer) {
-                        (*ctx.normalBuffer)[index] = shader.outNormal;
-                    }
+                    if (ctx.framebuffer) ctx.framebuffer->set(x, y, color);
+                    if (ctx.normalBuffer) (*ctx.normalBuffer)[index] = varyings->normalForBuffer;
                 }
             }
         }
@@ -160,37 +100,32 @@ std::pair<Vec3f, Vec3f> calculateTriangleBasis(const Vec3f pts[3], const Vec2f u
     return {tangent.normalize(), bitangent.normalize()};
 }
 
-void drawModel(const RenderContext &ctx, IShader& shader) {
-    const int width = ctx.width;
-    const int height = ctx.height;
-
-    const int numTilesX = (width + TILE_SIZE - 1) / TILE_SIZE;
-    const int numTilesY = (height + TILE_SIZE - 1) / TILE_SIZE;
-
-    std::vector<Tile> tiles(numTilesX * numTilesY);
-
-    const auto &faces = ctx.model.getFaces();
-    std::vector<ProcessedTriangle> processedTriangles(faces.size());
+inline std::vector<ProcessedTriangle> preProcessVertices(const ModelLoader& model, IShader& shader) {
+    const auto& faces = model.getFaces();
+    std::vector<ProcessedTriangle> processed(faces.size());
 
     for (size_t i = 0; i < faces.size(); ++i) {
-        const auto &face = faces[i];
-        const auto basis = calculateTriangleBasis(face.pts, face.uv);
+        const auto& face = faces[i];
+        auto [tangent, bitangent] = calculateTriangleBasis(face.pts, face.uv);
 
         for (int j = 0; j < 3; j++) {
-            processedTriangles[i].varyings[j] = shader.vertex(face.pts[j], face.normals[j], face.uv[j], basis.first, basis.second);
+            processed[i].varyings[j] = shader.vertex(face.pts[j], face.normals[j], face.uv[j], tangent, bitangent);
         }
+    }
+    return processed;
+}
 
-        Vec3f screenPts[3] = {
-            processedTriangles[i].varyings[0].screenPos,
-            processedTriangles[i].varyings[1].screenPos,
-            processedTriangles[i].varyings[2].screenPos
-        };
+inline std::vector<Tile> binTrianglesToTiles(const std::vector<ProcessedTriangle>& triangles, int width, int height, int numTilesX, int numTilesY) {
+    std::vector<Tile> tiles(numTilesX * numTilesY);
+
+    for (size_t i = 0; i < triangles.size(); ++i) {
+        Vec3f screenPts[3] = { triangles[i].varyings[0].screenPos, triangles[i].varyings[1].screenPos, triangles[i].varyings[2].screenPos };
         BBox bbox = computeTriangleBBox(screenPts);
 
-        int minTx = std::max(0, (int)(bbox._boxMin.x() / TILE_SIZE));
-        int maxTx = std::min(numTilesX - 1, (int)(bbox._boxMax.x() / TILE_SIZE));
-        int minTy = std::max(0, (int)(bbox._boxMin.y() / TILE_SIZE));
-        int maxTy = std::min(numTilesY - 1, (int)(bbox._boxMax.y() / TILE_SIZE));
+        const int minTx = std::max(0, (int)(bbox._boxMin.x() / TILE_SIZE));
+        const int maxTx = std::min(numTilesX - 1, (int)(bbox._boxMax.x() / TILE_SIZE));
+        const int minTy = std::max(0, (int)(bbox._boxMin.y() / TILE_SIZE));
+        const int maxTy = std::min(numTilesY - 1, (int)(bbox._boxMax.y() / TILE_SIZE));
 
         for (int ty = minTy; ty <= maxTy; ++ty) {
             for (int tx = minTx; tx <= maxTx; ++tx) {
@@ -198,38 +133,46 @@ void drawModel(const RenderContext &ctx, IShader& shader) {
             }
         }
     }
+    return tiles;
+}
+
+inline void tileWorker(std::atomic<int>& nextTileIndex, int totalTiles, const std::vector<Tile>& tiles,
+                const std::vector<ProcessedTriangle>& processedTriangles, IShader& shader,
+                const RenderContext& ctx, int numTilesX) {
+    int tileIdx;
+    while ((tileIdx = nextTileIndex.fetch_add(1)) < totalTiles) {
+        const auto& tile = tiles[tileIdx];
+        if (tile.triangleIndices.empty()) continue;
+
+        const int tx = tileIdx % numTilesX;
+        const int ty = tileIdx / numTilesX;
+        const int minX = tx * TILE_SIZE;
+        const int minY = ty * TILE_SIZE;
+        const int maxX = std::min(minX + TILE_SIZE - 1, ctx.width - 1);
+        const int maxY = std::min(minY + TILE_SIZE - 1, ctx.height - 1);
+
+        for (const int triIdx : tile.triangleIndices) {
+            drawTriangleClipped(processedTriangles[triIdx].varyings, shader, ctx, minX, minY, maxX, maxY);
+        }
+    }
+}
+
+void drawModel(const RenderContext &ctx, IShader& shader) {
+    const int numTilesX = (ctx.width + TILE_SIZE - 1) / TILE_SIZE;
+    const int numTilesY = (ctx.height + TILE_SIZE - 1) / TILE_SIZE;
+
+    const auto processedTriangles = preProcessVertices(ctx.model, shader);
+    const auto tiles = binTrianglesToTiles(processedTriangles, ctx.width, ctx.height, numTilesX, numTilesY);
 
     std::atomic<int> nextTileIndex{0};
-    int totalTiles = tiles.size();
-
-    unsigned int numThreads = std::thread::hardware_concurrency();
-    if (numThreads == 0) numThreads = 4;
+    const unsigned int numThreads = std::max(1u, std::thread::hardware_concurrency());
 
     std::vector<std::thread> workers;
-
+    workers.reserve(numThreads);
     for (unsigned int t = 0; t < numThreads; ++t) {
-        workers.emplace_back([&]() {
-            int tileIdx;
-            while ((tileIdx = nextTileIndex.fetch_add(1)) < totalTiles) {
-                const auto& tile = tiles[tileIdx];
-                if (tile.triangleIndices.empty()) continue;
-
-                int tx = tileIdx % numTilesX;
-                int ty = tileIdx / numTilesX;
-                int minX = tx * TILE_SIZE;
-                int minY = ty * TILE_SIZE;
-                int maxX = std::min(minX + TILE_SIZE - 1, width - 1);
-                int maxY = std::min(minY + TILE_SIZE - 1, height - 1);
-
-                for (size_t k = 0; k < tile.triangleIndices.size(); ++k) {
-                    int triIdx = tile.triangleIndices[k];
-                    drawTriangleClipped(processedTriangles[triIdx].varyings, shader, ctx, minX, minY, maxX, maxY);
-                }
-            }
-        });
+        workers.emplace_back(tileWorker, std::ref(nextTileIndex), (int)tiles.size(), std::cref(tiles),
+                             std::cref(processedTriangles), std::ref(shader), std::cref(ctx), numTilesX);
     }
 
-    for (auto& worker : workers) {
-        worker.join();
-    }
+    for (auto& worker : workers) worker.join();
 }

@@ -36,7 +36,7 @@ Varyings PhongShader::vertex(const Vec3f &localPos,
 }
 
 
-bool PhongShader::fragment(const Varyings &varyings, TGAColor &color) {
+bool PhongShader::fragment(Varyings &varyings, TGAColor &color) {
     constexpr int alphaTestLimit = 200;
     const float w = 1.0f / varyings.invW;
     const Vec2f uv = varyings.uv * w;
@@ -48,7 +48,7 @@ bool PhongShader::fragment(const Varyings &varyings, TGAColor &color) {
     float shadowFactor = calculateShadowFactor(worldPos);
     Vec3f finalNormal = calculateNormal(uv, T, B, N);
 
-    this->outNormal = finalNormal;
+    varyings.normalForBuffer = finalNormal;
 
     float diffuseIntensity, specIntensity;
     calculateLighting(finalNormal, worldPos, uv, shadowFactor, diffuseIntensity, specIntensity);

@@ -18,7 +18,7 @@ public:
                     const Vec3f &bitangent) override;
 
 
-    bool fragment(const Varyings &varyings, TGAColor &color) override;
+    bool fragment(Varyings &varyings, TGAColor &color) override;
 
 private:
     const TGAImage &diffuseMap;

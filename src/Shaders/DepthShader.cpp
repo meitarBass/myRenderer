@@ -19,6 +19,6 @@ Varyings DepthShader::vertex(const Vec3f& localPos, const Vec3f& normal, const V
     return out;
 }
 
-bool DepthShader::fragment(const Varyings& varyings, TGAColor &color)  {
+bool DepthShader::fragment(Varyings& varyings, TGAColor &color)  {
     return false;
 }

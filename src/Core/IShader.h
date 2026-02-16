@@ -13,6 +13,7 @@ struct Varyings {
     Vec3f tangent;
     Vec3f bitangent;
     float invW{1.0f};
+    Vec3f normalForBuffer;
 };
 
 struct Uniforms {
@@ -36,7 +37,6 @@ class IShader {
 public:
     virtual ~IShader() = default;
     Uniforms uniforms;
-    Vec3f outNormal;
 
     virtual Varyings vertex(const Vec3f& localPos,
                             const Vec3f& normal,
@@ -44,7 +44,7 @@ public:
                             const Vec3f& tangent,
                             const Vec3f& bitangent) = 0;
 
-    virtual bool fragment(const Varyings& varyings,
+    virtual bool fragment(Varyings& varyings,
                           TGAColor &color) = 0;
 
     static Varyings interpolate(const Varyings& v1,

@@ -38,7 +38,7 @@ private:
                                        const std::vector<Vec2f>& kernel,
                                        const std::vector<Vec2f>& noise);
 
-    static inline float randf() {
+    static float randf() {
         return static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
     }
 };

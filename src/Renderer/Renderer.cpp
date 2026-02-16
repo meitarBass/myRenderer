@@ -141,45 +141,61 @@ inline void Renderer::processPixelSSAO(int x, int y, int width, int height,
 void Renderer::applySSAO(RenderBuffers& target) {
     const int width = target.framebuffer.width();
     const int height = target.framebuffer.height();
+    std::uint8_t* rawFB = target.framebuffer.buffer();
 
     static std::vector<Vec2f> kernel;
     static std::vector<Vec2f> noise;
-
     if (kernel.empty()) {
-        constexpr int pixelSamples = 16;
-        for (int i = 0; i < pixelSamples; ++i) {
+        for (int i = 0; i < 16; ++i) {
             Vec2f sample(randf() * 2.0f - 1.0f, randf() * 2.0f - 1.0f);
             sample = sample.normalize();
-            float scale = float(i) / float(pixelSamples);
-            scale = linearInterpolation(0.1f, 1.0f, scale * scale);
+            float scale = (float)i / 16.0f;
+            scale = 0.1f + (scale * scale) * (1.0f - 0.1f);
             kernel.push_back(sample * scale);
         }
         for (int i = 0; i < 16; i++) {
-            Vec2f rot(randf() * 2.0f - 1.0f, randf() * 2.0f - 1.0f);
-            noise.push_back(rot.normalize());
+            noise.push_back(Vec2f(randf() * 2.0f - 1.0f, randf() * 2.0f - 1.0f).normalize());
         }
     }
 
-    unsigned int numThreads = std::thread::hardware_concurrency();
-    if (numThreads == 0) numThreads = 4;
-
+    unsigned int numThreads = std::max(1u, std::thread::hardware_concurrency());
     std::vector<std::thread> threads;
+    threads.reserve(numThreads);
     int rowsPerThread = height / numThreads;
 
-    for (int t = 0; t < numThreads; ++t) {
+    for (unsigned int t = 0; t < numThreads; ++t) {
         threads.emplace_back([&, t]() {
             int startY = t * rowsPerThread;
             int endY = (t == numThreads - 1) ? height : (t + 1) * rowsPerThread;
 
             for (int y = startY; y < endY; y++) {
                 for (int x = 0; x < width; x++) {
-                    processPixelSSAO(x, y, width, height, target.zbuffer, target.framebuffer, kernel, noise);
+                    const int idx = x + y * width;
+                    const float currentZ = target.zbuffer[idx];
+                    if (currentZ < -10000.0f) continue;
+
+                    float occlusion = 0.0f;
+                    Vec2f rot = noise[(x % 4) + (y % 4) * 4];
+                    for (int i = 0; i < 16; i++) {
+                        Vec2f k = kernel[i];
+                        float rx = k.x() * rot.x() - k.y() * rot.y();
+                        float ry = k.x() * rot.y() + k.y() * rot.x();
+                        int sx = x + (int)(rx * 10.0f);
+                        int sy = y + (int)(ry * 10.0f);
+                        if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
+                            float sampleZ = target.zbuffer[sx + sy * width];
+                            if (sampleZ > currentZ + 0.12f && std::abs(currentZ - sampleZ) < 50.0f) occlusion += 1.0f;
+                        }
+                    }
+
+                    float intensity = 1.0f - std::min(1.0f, (occlusion / 16.0f) * 2.0f);
+                    int offset = idx * 3;
+                    rawFB[offset]     = (std::uint8_t)(rawFB[offset]     * intensity);
+                    rawFB[offset + 1] = (std::uint8_t)(rawFB[offset + 1] * intensity);
+                    rawFB[offset + 2] = (std::uint8_t)(rawFB[offset + 2] * intensity);
                 }
             }
         });
     }
-
-    for (auto& worker : threads) {
-        worker.join();
-    }
+    for (auto& worker : threads) worker.join();
 }
