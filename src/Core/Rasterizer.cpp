@@ -170,7 +170,7 @@ void drawModel(const RenderContext &ctx, IShader& shader) {
     std::vector<std::thread> workers;
     workers.reserve(numThreads);
     for (unsigned int t = 0; t < numThreads; ++t) {
-        workers.emplace_back(tileWorker, std::ref(nextTileIndex), (int)tiles.size(), std::cref(tiles),
+        workers.emplace_back(tileWorker, std::ref(nextTileIndex), static_cast<int>(tiles.size()), std::cref(tiles),
                              std::cref(processedTriangles), std::ref(shader), std::cref(ctx), numTilesX);
     }
 
