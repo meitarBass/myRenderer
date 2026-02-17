@@ -7,7 +7,6 @@
 void Renderer::render(const Scene& scene, RenderBuffers& target) {
     const Matrix4f4 lightView = Matrix4f4::lookat(scene.lightPos, scene.camera.lookAt, scene.camera.up);
     const Matrix4f4 lightProj = Matrix4f4::projection(3.0f);
-
     const Matrix4f4 lightProjView = lightProj * lightView;
 
     // --- STEP 1: Shadow Pass ---
@@ -15,11 +14,11 @@ void Renderer::render(const Scene& scene, RenderBuffers& target) {
     std::vector<float> shadowMap(2048 * 2048, -std::numeric_limits<float>::max());
     runShadowPass(scene, shadowMap, lightProjView);
 
-    // --- STEP 2: Color Pass -
-    std::cout << "Running Color Pass..." << std::endl;
+    // --- STEP 2: Fill Z-Buffer (Crucial for SSAO) ---
+    std::cout << "2. Filling Depth Buffer..." << std::endl;
     runColorPass(scene, target, shadowMap, lightProjView);
 
-    // --- STEP 3: SSAO & Post Processing ---
+    // --- STEP 3: Apply SSAO ---
     std::cout << "3. Applying SSAO..." << std::endl;
     applySSAO(target);
 }
@@ -143,15 +142,17 @@ void Renderer::applySSAO(RenderBuffers& target) {
     const int height = target.framebuffer.height();
     std::uint8_t* rawFB = target.framebuffer.buffer();
 
+    constexpr float sampleRadius = 25.0f;
+    constexpr float bias = 0.05f;
+    constexpr float strength = 0.8f;
+
     static std::vector<Vec2f> kernel;
     static std::vector<Vec2f> noise;
     if (kernel.empty()) {
         for (int i = 0; i < 16; ++i) {
             Vec2f sample(randf() * 2.0f - 1.0f, randf() * 2.0f - 1.0f);
-            sample = sample.normalize();
-            float scale = (float)i / 16.0f;
-            scale = 0.1f + (scale * scale) * (1.0f - 0.1f);
-            kernel.push_back(sample * scale);
+            sample = sample.normalize() * (0.1f + 0.9f * (float)i / 16.0f);
+            kernel.push_back(sample);
         }
         for (int i = 0; i < 16; i++) {
             noise.push_back(Vec2f(randf() * 2.0f - 1.0f, randf() * 2.0f - 1.0f).normalize());
@@ -160,39 +161,48 @@ void Renderer::applySSAO(RenderBuffers& target) {
 
     unsigned int numThreads = std::max(1u, std::thread::hardware_concurrency());
     std::vector<std::thread> threads;
-    threads.reserve(numThreads);
     int rowsPerThread = height / numThreads;
 
     for (unsigned int t = 0; t < numThreads; ++t) {
         threads.emplace_back([&, t]() {
             int startY = t * rowsPerThread;
-            int endY = (t == numThreads - 1) ? height : (t + 1) * rowsPerThread;
+            int endY = (t == numThreads - 1) ? height : (startY + rowsPerThread);
 
             for (int y = startY; y < endY; y++) {
                 for (int x = 0; x < width; x++) {
                     const int idx = x + y * width;
                     const float currentZ = target.zbuffer[idx];
-                    if (currentZ < -10000.0f) continue;
+
+                    if (currentZ <= -std::numeric_limits<float>::max() + 100.0f) continue;
 
                     float occlusion = 0.0f;
                     Vec2f rot = noise[(x % 4) + (y % 4) * 4];
+
                     for (int i = 0; i < 16; i++) {
-                        Vec2f k = kernel[i];
-                        float rx = k.x() * rot.x() - k.y() * rot.y();
-                        float ry = k.x() * rot.y() + k.y() * rot.x();
-                        int sx = x + (int)(rx * 10.0f);
-                        int sy = y + (int)(ry * 10.0f);
+                        float rx = kernel[i].x() * rot.x() - kernel[i].y() * rot.y();
+                        float ry = kernel[i].x() * rot.y() + kernel[i].y() * rot.x();
+
+                        int sx = x + static_cast<int>(rx * sampleRadius);
+                        int sy = y + static_cast<int>(ry * sampleRadius);
+
                         if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
                             float sampleZ = target.zbuffer[sx + sy * width];
-                            if (sampleZ > currentZ + 0.12f && std::abs(currentZ - sampleZ) < 50.0f) occlusion += 1.0f;
+
+                            if (sampleZ > currentZ + bias) {
+                                float dist = std::abs(currentZ - sampleZ);
+                                if (dist < 2.0f) {
+                                    occlusion += 1.0f;
+                                }
+                            }
                         }
                     }
 
-                    float intensity = 1.0f - std::min(1.0f, (occlusion / 16.0f) * 2.0f);
+                    float intensity = 1.0f - std::min(1.0f, (occlusion / 16.0f) * strength);
+
                     int offset = idx * 3;
-                    rawFB[offset]     = (std::uint8_t)(rawFB[offset]     * intensity);
-                    rawFB[offset + 1] = (std::uint8_t)(rawFB[offset + 1] * intensity);
-                    rawFB[offset + 2] = (std::uint8_t)(rawFB[offset + 2] * intensity);
+                    rawFB[offset]     = static_cast<uint8_t>(rawFB[offset]     * intensity);
+                    rawFB[offset + 1] = static_cast<uint8_t>(rawFB[offset + 1] * intensity);
+                    rawFB[offset + 2] = static_cast<uint8_t>(rawFB[offset + 2] * intensity);
                 }
             }
         });

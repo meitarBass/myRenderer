@@ -26,12 +26,12 @@ This renderer is a deep dive into the **Graphics Pipeline**, **Linear Algebra**,
 
 ---
 
-### 📸 Showcase
-| Feature | Visual Output |
-| :--- | :--- |
-| **Normal Mapping** | *Insert your screenshot link here* |
-| **Shadows (PCF)** | *Insert your screenshot link here* |
-| **SSAO Pass** | *Insert your screenshot link here* |
+## 📸 Rendering Showcase
+
+| Normal Mapping | Shadow Mapping (PCF) | SSAO Pass | Final Scene |
+| :---: | :---: | :---: | :---: |
+| ![Normal Mapping](screenshots/normal-mapping.png) | ![Shadows](screenshots/shadow-map.png) | ![SSAO Pass](screenshots/ssao-effect.png) | ![Final Scene](screenshots/final-scene.png) |
+| *Fine surface details via Tangent-space normals* | *Soft shadows using 3x3 PCF kernel* | *Ambient occlusion pass on depth buffer* | *All effects combined: Lighting, Shadows & SSAO* |
 
 ---
 
