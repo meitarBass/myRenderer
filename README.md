@@ -1,45 +1,43 @@
-Multi-Threaded Software Renderer (C++17)
-A high-performance CPU-based 3D renderer built from scratch, inspired by the Tiny Renderer curriculum. This project focuses on the low-level mechanics of the graphics pipeline, memory architecture, and high-performance parallel computing.
+# 🎨 Multi-Threaded Software Renderer
+> **A high-performance CPU pipeline built from scratch in C++17**
 
-🚀 Technical & Engineering Highlights
-Tile-Based Parallel Rasterization: Screen is partitioned into 16x16 tiles and processed via a thread pool to maximize cache locality and CPU throughput.
+![C++](https://img.shields.io/badge/Language-C%2B%2B17-blue.svg)
+![Build](https://img.shields.io/badge/Build-CMake-orange.svg)
 
-Lock-Free Synchronization: Implemented a thread-safe Z-buffer using std::atomic operations, eliminating the performance bottleneck of Mutex locks during concurrent fragment shading.
+This renderer is a deep dive into the **Graphics Pipeline**, **Linear Algebra**, and **Systems Programming**. Inspired by the *Tiny Renderer* curriculum, it moves beyond the basics by implementing a fully multi-threaded architecture with lock-free synchronization.
 
-Raw Binary I/O: Direct manipulation of the TGA (Truevision Graphics Adapter) file format for image output, demonstrating low-level data handling without external image libraries.
+---
 
-Custom Linear Algebra Library:
+### 🚀 Performance Engineering
+* **Tile-Based Parallelism**: The screen is divided into 16x16 tiles, utilizing a **Thread Pool** to maximize cache locality and CPU saturation.
+* **Lock-Free Z-Buffer**: Used `std::atomic` to handle concurrent pixel writes, eliminating Mutex contention and boosting FPS significantly.
+* **Atomic Task Scheduling**: Efficient load balancing via `fetch_add` on an atomic counter, ensuring no CPU core stays idle.
 
-Built a template-based library for Vectors and Matrices (
-2×2
- to 
-4×4
-).
+### 📐 The Math Engine
+* **Column-Major Matrices**: Stored in column-major order to align with standard graphics API conventions (OpenGL/DirectX).
+* **Template-Based Vectors**: Generic N-dimensional vectors with `static_assert` and **C++ Concepts** for rigorous compile-time type safety.
+* **Perspective-Correct Shading**: Advanced barycentric interpolation accounting for the $1/w$ depth component.
 
-Column-Major Convention: Matrices are stored and processed in column-major order to align with standard graphics API conventions.
+### 🛠 Graphics Features
+* **Advanced Lighting**: Full Blinn-Phong model with Normal & Specular mapping.
+* **Soft Shadows**: Shadow mapping with **3x3 PCF (Percentage Closer Filtering)** for realistic edges.
+* **Ambient Occlusion**: An optimized **SSAO** pass to simulate global soft shadows.
+* **Raw Binary I/O**: Custom **TGA encoder** for direct image generation without external dependencies.
 
-Compile-Time Safety: Extensive use of static_assert and C++ Concepts to validate matrix dimensions and numeric types during compilation.
+---
 
-Perspective-Correct Interpolation: High-fidelity attribute mapping (UVs, Normals, Tangents) using barycentric coordinates adjusted for the 
-1/w
- depth component.
+### 📸 Showcase
+| Feature | Visual Output |
+| :--- | :--- |
+| **Normal Mapping** | *Insert your screenshot link here* |
+| **Shadows (PCF)** | *Insert your screenshot link here* |
+| **SSAO Pass** | *Insert your screenshot link here* |
 
-🛠 Graphics Pipeline Features
-Coordinate Systems: Implemented standard Right-Handed coordinate system with Look-At camera transformations and Perspective projection.
+---
 
-Blinn-Phong Shading: Full lighting model including ambient, diffuse, and specular components.
-
-Advanced Mapping: Support for Normal Mapping (Tangent space) and Specular Mapping to simulate complex surface details.
-
-Shadow Mapping (PCF): Robust shadow generation using Percentage Closer Filtering (
-3×3
- kernel) for softened, realistic shadow edges.
-
-Post-Processing (SSAO): Screen Space Ambient Occlusion pass optimized for high memory throughput to simulate global illumination effects.
-
-Alpha Testing: Custom fragment discard logic for handling complex geometry like foliage and transparent textures.
-
-📊 Performance Optimizations
-Atomic Counter Tasking: Worker threads fetch tasks via fetch_add, ensuring optimal load balancing across all CPU cores.
-
-Zero-Copy Intent: Optimized data flow using constant references (const T&) to minimize unnecessary memory allocations and object copying.
+### 🏗 How to Build
+```bash
+mkdir build && cd build
+cmake ..
+make
+./Renderer
