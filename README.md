@@ -1,5 +1,5 @@
 # 🎨 Multi-Threaded Software Renderer
-> **A high-performance CPU pipeline built from scratch in C++17**
+> **A high-performance CPU pipeline built from scratch in C++20**
 
 ![C++](https://img.shields.io/badge/Language-C%2B%2B17-blue.svg)
 ![Build](https://img.shields.io/badge/Build-CMake-orange.svg)
