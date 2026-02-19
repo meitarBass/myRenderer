@@ -102,16 +102,29 @@ std::pair<Vec3f, Vec3f> calculateTriangleBasis(const Vec3f pts[3], const Vec2f u
 
 inline std::vector<ProcessedTriangle> preProcessVertices(const ModelLoader& model, IShader& shader) {
     const auto& faces = model.getFaces();
-    std::vector<ProcessedTriangle> processed(faces.size());
+    std::vector<ProcessedTriangle> processed;
+    processed.reserve(faces.size());
 
-    for (size_t i = 0; i < faces.size(); ++i) {
-        const auto& face = faces[i];
+    for (const auto& face: faces) {
         auto [tangent, bitangent] = calculateTriangleBasis(face.pts, face.uv);
 
+        ProcessedTriangle pt;
+
         for (int j = 0; j < 3; j++) {
-            processed[i].varyings[j] = shader.vertex(face.pts[j], face.normals[j], face.uv[j], tangent, bitangent);
+            pt.varyings[j] = shader.vertex(face.pts[j], face.normals[j], face.uv[j], tangent, bitangent);
+        }
+
+        const Vec3f& p0 = pt.varyings[0].screenPos;
+        const Vec3f& p1 = pt.varyings[1].screenPos;
+        const Vec3f& p2 = pt.varyings[2].screenPos;
+
+        const float signedArea = (p1.x() - p0.x()) * (p2.y() - p0.y()) - (p1.y() - p0.y()) * (p2.x() - p0.x());
+
+        if (signedArea > 0.0f) {
+            processed.push_back(pt);
         }
     }
+    std::cout << "Original faces: " << faces.size() << " | Rendered faces: " << processed.size() << std::endl;
     return processed;
 }
 

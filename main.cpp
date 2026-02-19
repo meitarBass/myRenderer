@@ -58,7 +58,7 @@ bool scene1() {
 
     auto re = Renderer{};
     re.render(scene, rb);
-    
+
     bool res = rb.framebuffer.write_tga_file("final_scene.tga");
     std::cout << "Done! Saved diablo_scene.tga" << std::endl;
     return res;
