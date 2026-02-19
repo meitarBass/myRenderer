@@ -4,13 +4,13 @@
 #include "tests/RendererUnitTests.h"
 
 bool scene1() {
-    constexpr int width = 2000;
-    constexpr int height = 2000;
+    constexpr int width = 2048;
+    constexpr int height = 2048;
 
     const auto cam = Camera({0, 2, 6}, {0,0,0}, {0, 1, 0}, 3.0);
     Vec3f lightPos = Vec3f(2, 3, 3).normalize() * 5.0f;
     const auto lightDir = (lightPos - cam.lookAt).normalize();
-    auto rb = RenderBuffers(width, height);
+    auto rb = RenderBuffers(width, height, width, height);
     auto scene = Scene(cam, lightDir, lightPos);
 
     const std::string diabloRoot = "../Models/obj/diablo3_pose/";
@@ -56,7 +56,7 @@ bool scene1() {
 
     scene.addModel(floorModel);
 
-    Renderer re = {};
+    auto re = Renderer{};
     re.render(scene, rb);
 
     bool res = rb.framebuffer.write_tga_file("final_scene.tga");
@@ -65,13 +65,13 @@ bool scene1() {
 }
 
 bool scene2() {
-    constexpr int width = 2000;
-    constexpr int height = 2000;
+    constexpr int width = 2048;
+    constexpr int height = 2048;
 
     const auto cam = Camera({0, 0, 1}, {0,0,0}, {0, 1, 0}, 3.0);
     Vec3f lightPos = Vec3f(2, 3, 3).normalize() * 5.0f;
     const auto lightDir = (lightPos - cam.lookAt).normalize();
-    auto rb = RenderBuffers(width, height);
+    auto rb = RenderBuffers(width, height, width, height);
     auto scene = Scene(cam, lightDir, lightPos);
 
     const std::string headRoot = "../Models/obj/african_head/";
@@ -88,7 +88,7 @@ bool scene2() {
     scene.addModel(eyes_in);
     scene.addModel(eyes_out);
 
-    Renderer re = {};
+    auto re = Renderer{};
     re.render(scene, rb);
 
     bool res = rb.framebuffer.write_tga_file("final_scene.tga");
@@ -97,13 +97,13 @@ bool scene2() {
 }
 
 bool scene3() {
-    constexpr int width = 2000;
-    constexpr int height = 2000;
+    constexpr int width = 2048;
+    constexpr int height = 2048;
 
     const auto cam = Camera({0, 2, 5}, {0,0,0}, {0, 1, 0}, 3.0);
     Vec3f lightPos = Vec3f(2, 3, 3).normalize() * 5.0f;
     const auto lightDir = (lightPos - cam.lookAt).normalize();
-    auto rb = RenderBuffers(width, height);
+    auto rb = RenderBuffers(width, height, width, height);
     auto scene = Scene(cam, lightDir, lightPos);
 
     const std::string diabloRoot = "../Models/obj/diablo3_pose/";
@@ -122,7 +122,7 @@ bool scene3() {
 
     scene.addModel(floorModel);
 
-    Renderer re = {};
+    auto re = Renderer{};
     re.render(scene, rb);
 
     bool res = rb.framebuffer.write_tga_file("final_scene.tga");
