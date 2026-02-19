@@ -167,12 +167,12 @@ void drawModel(const RenderContext &ctx, IShader& shader) {
     std::atomic<int> nextTileIndex{0};
     const unsigned int numThreads = std::max(1u, std::thread::hardware_concurrency());
 
-    std::vector<std::thread> workers;
-    workers.reserve(numThreads);
     for (unsigned int t = 0; t < numThreads; ++t) {
-        workers.emplace_back(tileWorker, std::ref(nextTileIndex), static_cast<int>(tiles.size()), std::cref(tiles),
-                             std::cref(processedTriangles), std::ref(shader), std::cref(ctx), numTilesX);
+        ThreadPool::instance().enqueue([&, t]() {
+            tileWorker(std::ref(nextTileIndex), static_cast<int>(tiles.size()), std::cref(tiles),
+          std::cref(processedTriangles), std::ref(shader), std::cref(ctx), numTilesX);
+        });
     }
 
-    for (auto& worker : workers) worker.join();
+    ThreadPool::instance().waitFinished();
 }

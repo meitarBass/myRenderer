@@ -5,14 +5,15 @@
 #include "../IO/tgaimage.h"
 #include "../IO/ModelLoader.h"
 #include "IShader.h"
+#include "../Utils/ThreadPool.h"
 
 struct RenderContext {
     const ModelLoader &model;
     std::vector<float>& zbuffer;
     TGAImage* framebuffer = nullptr;
     std::vector<Vec3f>* normalBuffer = nullptr;
-    int width;
-    int height;
+    int width = 0;
+    int height = 0;
 };
 
 

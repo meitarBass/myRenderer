@@ -107,52 +107,52 @@ void Renderer::applySSAO(RenderBuffers& target) {
     }
 
     unsigned int numThreads = std::max(1u, std::thread::hardware_concurrency());
-    std::vector<std::thread> threads;
     int rowsPerThread = height / numThreads;
 
     for (unsigned int t = 0; t < numThreads; ++t) {
-        threads.emplace_back([&, t]() {
+        ThreadPool::instance().enqueue([&, t]() {
             int startY = t * rowsPerThread;
-            int endY = (t == numThreads - 1) ? height : (startY + rowsPerThread);
+              int endY = (t == numThreads - 1) ? height : (startY + rowsPerThread);
 
-            for (int y = startY; y < endY; y++) {
-                for (int x = 0; x < width; x++) {
-                    const int idx = x + y * width;
-                    const float currentZ = target.zbuffer[idx];
+              for (int y = startY; y < endY; y++) {
+                  for (int x = 0; x < width; x++) {
+                      const int idx = x + y * width;
+                      const float currentZ = target.zbuffer[idx];
 
-                    if (currentZ <= -std::numeric_limits<float>::max() + 100.0f) continue;
+                      if (currentZ <= -std::numeric_limits<float>::max() + 100.0f) continue;
 
-                    float occlusion = 0.0f;
-                    Vec2f rot = noise[(x % 4) + (y % 4) * 4];
+                      float occlusion = 0.0f;
+                      Vec2f rot = noise[(x % 4) + (y % 4) * 4];
 
-                    for (int i = 0; i < 16; i++) {
-                        float rx = kernel[i].x() * rot.x() - kernel[i].y() * rot.y();
-                        float ry = kernel[i].x() * rot.y() + kernel[i].y() * rot.x();
+                      for (int i = 0; i < 16; i++) {
+                          float rx = kernel[i].x() * rot.x() - kernel[i].y() * rot.y();
+                          float ry = kernel[i].x() * rot.y() + kernel[i].y() * rot.x();
 
-                        int sx = x + static_cast<int>(rx * sampleRadius);
-                        int sy = y + static_cast<int>(ry * sampleRadius);
+                          int sx = x + static_cast<int>(rx * sampleRadius);
+                          int sy = y + static_cast<int>(ry * sampleRadius);
 
-                        if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
-                            float sampleZ = target.zbuffer[sx + sy * width];
+                          if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
+                              float sampleZ = target.zbuffer[sx + sy * width];
 
-                            if (sampleZ > currentZ + bias) {
-                                float dist = std::abs(currentZ - sampleZ);
-                                if (dist < 2.0f) {
-                                    occlusion += 1.0f;
-                                }
-                            }
-                        }
-                    }
+                              if (sampleZ > currentZ + bias) {
+                                  float dist = std::abs(currentZ - sampleZ);
+                                  if (dist < 2.0f) {
+                                      occlusion += 1.0f;
+                                  }
+                              }
+                          }
+                      }
 
-                    float intensity = 1.0f - std::min(1.0f, (occlusion / 16.0f) * strength);
+                      float intensity = 1.0f - std::min(1.0f, (occlusion / 16.0f) * strength);
 
-                    int offset = idx * 3;
-                    rawFB[offset]     = static_cast<uint8_t>(rawFB[offset]     * intensity);
-                    rawFB[offset + 1] = static_cast<uint8_t>(rawFB[offset + 1] * intensity);
-                    rawFB[offset + 2] = static_cast<uint8_t>(rawFB[offset + 2] * intensity);
-                }
-            }
+                      int offset = idx * 3;
+                      rawFB[offset]     = static_cast<uint8_t>(rawFB[offset]     * intensity);
+                      rawFB[offset + 1] = static_cast<uint8_t>(rawFB[offset + 1] * intensity);
+                      rawFB[offset + 2] = static_cast<uint8_t>(rawFB[offset + 2] * intensity);
+                  }
+              }
         });
     }
-    for (auto& worker : threads) worker.join();
+
+    ThreadPool::instance().waitFinished();
 }

@@ -41,4 +41,6 @@ add_executable(Renderer
         src/Core/Camera.h
         src/Renderer/Renderer.cpp
         src/Renderer/Renderer.h
+        src/Utils/ThreadPool.cpp
+        src/Utils/ThreadPool.h
 )
