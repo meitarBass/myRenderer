@@ -35,6 +35,10 @@ private:
                            float& outDiffuse,
                            float& outSpec) const;
 
+    constexpr static int alphaTestLimit = 200;
+    constexpr static float bias = 0.005;
+    constexpr static float ambient = 0.3f;
+
 };
 
 #endif //RENDERER_PHONGSHADER_H

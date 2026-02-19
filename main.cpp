@@ -20,7 +20,7 @@ bool scene1() {
     auto diabloModel = ModelInstance(diabloRoot, "diablo3_pose.obj", "diablo3_pose_diffuse.tga", "diablo3_pose_nm_tangent.tga", "diablo3_pose_spec.tga", false);
     diabloModel.rotation = {0, 40, 0};
     diabloModel.scale = {0.55, 0.55, 0.55};
-    diabloModel.position = {-1.15, -0.42, -2.5};
+    diabloModel.position = {-0.5, -0.42, -1.5};
 
     scene.addModel(diabloModel);
 

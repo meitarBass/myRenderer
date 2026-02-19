@@ -8,9 +8,10 @@
 namespace GraphicsUtils {
     constexpr float EPSILON = 1e-5f;
     constexpr float PI = 3.14159265359f;
+    constexpr float MAX_COLOR_F = 255.0f;
 
     inline float angleToRadians(float angle) {
-        return GraphicsUtils::PI * angle / 180;
+        return PI * angle / 180;
     }
 }
 

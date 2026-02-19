@@ -5,7 +5,6 @@
 #include "../IO/tgaimage.h"
 #include "../IO/ModelLoader.h"
 #include "IShader.h"
-#include "../Utils/ThreadPool.h"
 
 struct RenderContext {
     const ModelLoader &model;

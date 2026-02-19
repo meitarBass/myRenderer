@@ -37,7 +37,6 @@ Varyings PhongShader::vertex(const Vec3f &localPos,
 
 
 bool PhongShader::fragment(Varyings &varyings, TGAColor &color) {
-    constexpr int alphaTestLimit = 200;
     const float w = 1.0f / varyings.invW;
     const Vec2f uv = varyings.uv * w;
     const Vec3f worldPos = varyings.worldPos * w;
@@ -45,8 +44,8 @@ bool PhongShader::fragment(Varyings &varyings, TGAColor &color) {
     const Vec3f T = varyings.tangent.normalize();
     const Vec3f B = varyings.bitangent.normalize();
 
-    float shadowFactor = calculateShadowFactor(worldPos);
-    Vec3f finalNormal = calculateNormal(uv, T, B, N);
+    const float shadowFactor = calculateShadowFactor(worldPos);
+    const Vec3f finalNormal = calculateNormal(uv, T, B, N);
 
     varyings.normalForBuffer = finalNormal;
 
@@ -58,11 +57,10 @@ bool PhongShader::fragment(Varyings &varyings, TGAColor &color) {
         static_cast<int>(uv.y() * diffuseMap.height())
     );
 
-    constexpr float ambient = 0.3f;
     const float totalIntensity = ambient + diffuseIntensity + specIntensity;
 
     for (int i = 0; i < 3; i++) {
-        color[i] = (unsigned char)std::min(255.0f, texColor[i] * totalIntensity);
+        color[i] = (unsigned char)std::min(GraphicsUtils::MAX_COLOR_F, texColor[i] * totalIntensity);
     }
 
     return useAlphaTest ? texColor[3] < alphaTestLimit : false;
@@ -77,7 +75,6 @@ float PhongShader::calculateShadowFactor(const Vec3f& worldPos) const {
     const float scX = (lightNDC.x() + 1.0f) * 0.5f * uniforms.shadowWidth;
     const float scY = (lightNDC.y() + 1.0f) * 0.5f * uniforms.shadowHeight;
     const float currentDepth = (lightNDC.z() + 1.0f) * 0.5f;
-    constexpr float bias = 0.005f;
 
     float shadowSum = 0.0f;
     int sampleCount = 0;
@@ -107,9 +104,9 @@ Vec3f PhongShader::calculateNormal(const Vec2f& uv, const Vec3f& T, const Vec3f&
         static_cast<int>(uv.y() * normalMap.height())
     );
     Vec3f mapNormal(
-        (static_cast<float>(nmC[2]) / 255.0f) * 2.0f - 1.0f,
-        (static_cast<float>(nmC[1]) / 255.0f) * 2.0f - 1.0f,
-        (static_cast<float>(nmC[0]) / 255.0f) * 2.0f - 1.0f
+        (static_cast<float>(nmC[2]) / GraphicsUtils::MAX_COLOR_F) * 2.0f - 1.0f,
+        (static_cast<float>(nmC[1]) / GraphicsUtils::MAX_COLOR_F) * 2.0f - 1.0f,
+        (static_cast<float>(nmC[0]) / GraphicsUtils::MAX_COLOR_F) * 2.0f - 1.0f
     );
     return (T * mapNormal.x() + B * mapNormal.y() + N * mapNormal.z()).normalize();
 }
@@ -117,9 +114,10 @@ Vec3f PhongShader::calculateNormal(const Vec2f& uv, const Vec3f& T, const Vec3f&
 void PhongShader::calculateLighting(const Vec3f& normal,
                                     const Vec3f& worldPos,
                                     const Vec2f& uv,
-                                    float shadowFactor,
+                                    const float shadowFactor,
                                     float& outDiffuse,
                                     float& outSpec) const {
+    constexpr float lightFormulaPower = 10.0f;
 
     const Vec3f L = uniforms.lightDir.normalize();
     const Vec3f V = (uniforms.cameraPos - worldPos).normalize();
@@ -134,5 +132,5 @@ void PhongShader::calculateLighting(const Vec3f& normal,
         static_cast<int>(uv.x() * specularMap.width()),
         static_cast<int>(uv.y() * specularMap.height())
     );
-    outSpec = std::pow(std::max(0.0f, dotProduct(R, V)), 10.0f) * (specData[0] / 255.0f) * shadowFactor;
+    outSpec = std::pow(std::max(0.0f, dotProduct(R, V)), lightFormulaPower) * (specData[0] / GraphicsUtils::MAX_COLOR_F) * shadowFactor;
 }

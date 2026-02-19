@@ -1,4 +1,4 @@
-#include "../Utils//ThreadPool.h"
+#include "../Utils/ThreadPool.h"
 
 ThreadPool::ThreadPool(size_t threads) {
     for (size_t i = 0; i < threads; i++) {

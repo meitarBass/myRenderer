@@ -3,6 +3,7 @@
 #include <vector>
 #include <atomic>
 #include <algorithm>
+#include "../Utils/ThreadPool.h"
 
 constexpr int TILE_SIZE = 32;
 
@@ -43,14 +44,14 @@ BBox computeTriangleBBox(const Vec3f pts[3]) {
 }
 
 void drawTriangleClipped(const Varyings varyings[3], IShader &shader, const RenderContext &ctx,
-                         int tileMinX, int tileMinY, int tileMaxX, int tileMaxY) {
+                         const int tileMinX, const int tileMinY, const int tileMaxX, const int tileMaxY) {
     Vec3f pts[3] = { varyings[0].screenPos, varyings[1].screenPos, varyings[2].screenPos };
     BBox bbox = computeTriangleBBox(pts);
 
-    int minX = std::max(tileMinX, (int)bbox._boxMin.x());
-    int maxX = std::min(tileMaxX, (int)bbox._boxMax.x());
-    int minY = std::max(tileMinY, (int)bbox._boxMin.y());
-    int maxY = std::min(tileMaxY, (int)bbox._boxMax.y());
+    const int minX = std::max(tileMinX, (int)bbox._boxMin.x());
+    const int maxX = std::min(tileMaxX, (int)bbox._boxMax.x());
+    const int minY = std::max(tileMinY, (int)bbox._boxMin.y());
+    const int maxY = std::min(tileMaxY, (int)bbox._boxMax.y());
 
     if (minX > maxX || minY > maxY) return;
 
@@ -124,7 +125,7 @@ inline std::vector<ProcessedTriangle> preProcessVertices(const ModelLoader& mode
             processed.push_back(pt);
         }
     }
-    std::cout << "Original faces: " << faces.size() << " | Rendered faces: " << processed.size() << std::endl;
+    // std::cout << "Original faces: " << faces.size() << " | Rendered faces: " << processed.size() << std::endl;
     return processed;
 }
 
@@ -149,9 +150,9 @@ inline std::vector<Tile> binTrianglesToTiles(const std::vector<ProcessedTriangle
     return tiles;
 }
 
-inline void tileWorker(std::atomic<int>& nextTileIndex, int totalTiles, const std::vector<Tile>& tiles,
+inline void tileWorker(std::atomic<int>& nextTileIndex, const int totalTiles, const std::vector<Tile>& tiles,
                 const std::vector<ProcessedTriangle>& processedTriangles, IShader& shader,
-                const RenderContext& ctx, int numTilesX) {
+                const RenderContext& ctx, const int numTilesX) {
     int tileIdx;
     while ((tileIdx = nextTileIndex.fetch_add(1)) < totalTiles) {
         const auto& tile = tiles[tileIdx];
@@ -165,7 +166,8 @@ inline void tileWorker(std::atomic<int>& nextTileIndex, int totalTiles, const st
         const int maxY = std::min(minY + TILE_SIZE - 1, ctx.height - 1);
 
         for (const int triIdx : tile.triangleIndices) {
-            drawTriangleClipped(processedTriangles[triIdx].varyings, shader, ctx, minX, minY, maxX, maxY);
+            drawTriangleClipped(processedTriangles[triIdx].varyings, shader, ctx,
+                         minX, minY, maxX, maxY);
         }
     }
 }
