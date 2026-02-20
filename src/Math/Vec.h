@@ -1,7 +1,6 @@
 #ifndef RENDERER_VEC_H
 #define RENDERER_VEC_H
 
-#include <iostream>
 #include <type_traits>
 #include <cmath>
 
@@ -55,48 +54,53 @@ public:
     T z() const { static_assert(n >= 3); return raw[2]; }
     T w() const { static_assert(n >= 4); return raw[3]; }
 
-    Vec<T, n>& operator+=(const Vec<T, n>& other) {
+    Vec& operator+=(const Vec& other) {
         for(int i = 0 ; i < n ; i++) {
             raw[i] += other.raw[i];
         }
         return *this;
     }
 
-    Vec<T, n> operator+(const Vec<T, n>& other) const {
-        return Vec<T, n>(*this) += other;
+    Vec operator+(const Vec& other) const
+    {
+        return Vec(*this) += other;
     }
 
-    Vec<T, n> operator-() {
-        Vec<T, n> res;
+    Vec operator-()
+    {
+        Vec res;
         for(int i = 0; i < n ; i++)  {
             res.raw[i] = -raw[i];
         }
         return res;
     }
 
-    Vec<T, n>& operator -=(const Vec<T, n>& other) {
+    Vec& operator -=(const Vec& other) {
         for (int i = 0 ; i < n; i++) {
             raw[i] -= other.raw[i];
         }
         return *this;
     }
 
-    Vec<T, n> operator-(const Vec<T, n>& other) const {
-        Vec<T, n> res = *this;
+    Vec operator-(const Vec& other) const
+    {
+        Vec res = *this;
         res -= other;
         return res;
     }
 
-    Vec<T, n> operator*(T f) const {
-        Vec<T, n> res;
+    Vec operator*(T f) const
+    {
+        Vec res;
         for (int i = 0; i < n; i++) {
             res.raw[i] = raw[i] * f;
         }
         return res;
     }
 
-    Vec<T, n> operator/(T f) const {
-        Vec<T, n> res;
+    Vec operator/(T f) const
+    {
+        Vec res;
         float inverseF = 1.0f / f;
         for (int i = 0; i < n; i++) {
             res.raw[i] = raw[i] * inverseF;
@@ -104,7 +108,8 @@ public:
         return res;
     }
 
-    T lengthSquared() const {
+    [[nodiscard]] T lengthSquared() const
+    {
         T length = 0;
         for(int i = 0 ; i < n; i++) {
             length += (raw[i] * raw[i]);
@@ -113,11 +118,13 @@ public:
         return length;
     }
 
-    T length() const {
+    [[nodiscard]] T length() const
+    {
         return std::sqrt(lengthSquared());
     }
 
-    Vec<T, n> normalize() const {
+    [[nodiscard]] Vec normalize() const
+    {
         T l2 = lengthSquared();
         if (l2 < GraphicsUtils::EPSILON * GraphicsUtils::EPSILON) {
             return *this;
@@ -136,7 +143,7 @@ using Vec4i = Vec<int, 4>;
 using Point3 = Vec<float, 3>;
 
 template <Numeric T, int n>
-T dotProduct(const Vec<T, n> &v1, const Vec<T, n> &v2) {
+[[nodiscard]] T dotProduct(const Vec<T, n> &v1, const Vec<T, n> &v2) {
     T res = 0;
     for (int i = 0; i < n; i++) {
         res += (v1[i] * v2[i]);
@@ -145,20 +152,23 @@ T dotProduct(const Vec<T, n> &v1, const Vec<T, n> &v2) {
 }
 
 template <Numeric T>
-inline Vec<T, 3> cross(const Vec<T, 3> &v1, const Vec<T, 3> &v2) {
+[[nodiscard]] Vec<T, 3> cross(const Vec<T, 3> &v1, const Vec<T, 3> &v2)
+{
     return Vec<T, 3>(v1.y() * v2.z() - v1.z() * v2.y(),
                      v1.z() * v2.x() - v1.x() * v2.z(),
                      v1.x() * v2.y() - v1.y() * v2.x());
 }
 
 template <Numeric T, int n>
-inline Vec<T, n> operator*(float f, const Vec<T, n> &v) {
+[[nodiscard]] Vec<T, n> operator*(float f, const Vec<T, n> &v)
+{
     return v * f;
 }
 
 
 template <Numeric T>
-inline float determinant2D(const Vec<T, 2> &v1, const Vec<T, 2> &v2) {
+[[nodiscard]] float determinant2D(const Vec<T, 2> &v1, const Vec<T, 2> &v2)
+{
     return v1.x() * v2.y() - v1.y() * v2.x();
 }
 

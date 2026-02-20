@@ -5,7 +5,8 @@
 #include <iostream>
 #include <thread>
 
-void Renderer::render(const Scene& scene, RenderBuffers& target) {
+void Renderer::render(const Scene& scene, RenderBuffers& target)
+{
     const Matrix4f4 lightView = Matrix4f4::lookat(scene.lightPos, scene.camera.lookAt, scene.camera.up);
     const Matrix4f4 lightProj = Matrix4f4::projection(LIGHT_PROJECTION_SIZE);
     const Matrix4f4 lightProjView = lightProj * lightView;
@@ -26,7 +27,8 @@ void Renderer::render(const Scene& scene, RenderBuffers& target) {
 
 void Renderer::runShadowPass(const Scene& scene,
                              RenderBuffers &target,
-                             const Matrix4f4& lightProjView) {
+                             const Matrix4f4& lightProjView)
+{
 
     const Matrix4f4 lightViewport = Matrix4f4::viewport(0, 0, target.shadowW, target.shadowH);
 
@@ -48,8 +50,9 @@ void Renderer::runShadowPass(const Scene& scene,
 }
 
 void Renderer::runColorPass(const Scene& scene,
-                            RenderBuffers& target,
-                            const Matrix4f4& lightProjView) {
+                  RenderBuffers& target,
+                  const Matrix4f4& lightProjView)
+{
 
     const Matrix4f4 view = Matrix4f4::lookat(scene.camera.pos, scene.camera.lookAt, scene.camera.up);
     const Matrix4f4 projection = Matrix4f4::projection(scene.camera.focalLength);
@@ -81,11 +84,8 @@ void Renderer::runColorPass(const Scene& scene,
     }
 }
 
-float linearInterpolation(float a, float b, float f) {
-    return a + f * (b - a);
-}
-
-void Renderer::applySSAO(RenderBuffers& target) {
+void Renderer::applySSAO(RenderBuffers& target)
+{
     const int width = target.width;
     const int height = target.height;
 
@@ -93,6 +93,40 @@ void Renderer::applySSAO(RenderBuffers& target) {
 
     static std::vector<Vec2f> kernel;
     static std::vector<Vec2f> noise;
+
+    initSSAOSamples(kernel, noise);
+
+    const unsigned int numThreads = std::max(1u, std::thread::hardware_concurrency());
+    const int rowsPerThread =  static_cast<int>(height / numThreads);
+
+    for (int t = 0; t < numThreads; ++t) {
+        ThreadPool::instance().enqueue([&, t]() {
+            const int startY = t * rowsPerThread;
+            const int endY = (t == numThreads - 1) ? height : (startY + rowsPerThread);
+            for (int y = startY; y < endY; y++) {
+                for (int x = 0; x < width; x++) {
+                    const int idx = x + y * width;
+                    const float intensity = computePixelOcclusion(x, y, width, height,
+                                                                  target.zbuffer, kernel, noise);
+
+                    if (intensity < 0.0f) continue;
+
+                    const int offset = idx * 3;
+                    rawFB[offset]     = static_cast<uint8_t>(rawFB[offset]     * intensity);
+                    rawFB[offset + 1] = static_cast<uint8_t>(rawFB[offset + 1] * intensity);
+                    rawFB[offset + 2] = static_cast<uint8_t>(rawFB[offset + 2] * intensity);
+                }
+            }
+        });
+    }
+
+    ThreadPool::instance().waitFinished();
+}
+
+
+
+void Renderer::initSSAOSamples(std::vector<Vec2f>& kernel, std::vector<Vec2f>& noise)
+{
     if (kernel.empty()) {
         for (int i = 0; i < SSAO_RANDOM_PIXEL_SAMPLES; ++i) {
             Vec2f sample(randf() * 2.0f - 1.0f, randf() * 2.0f - 1.0f);
@@ -103,54 +137,40 @@ void Renderer::applySSAO(RenderBuffers& target) {
             noise.push_back(Vec2f(randf() * 2.0f - 1.0f, randf() * 2.0f - 1.0f).normalize());
         }
     }
+}
 
-    const unsigned int numThreads = std::max(1u, std::thread::hardware_concurrency());
-    const int rowsPerThread = height / numThreads;
 
-    for (unsigned int t = 0; t < numThreads; ++t) {
-        ThreadPool::instance().enqueue([&, t]() {
-            int startY = t * rowsPerThread;
-              int endY = (t == numThreads - 1) ? height : (startY + rowsPerThread);
+float Renderer::computePixelOcclusion(const int x, const int y,
+                                      const int width, const int height,
+                                      const std::vector<float>& zbuffer,
+                                      const std::vector<Vec2f>& kernel,
+                                      const std::vector<Vec2f>& noise)
+{
+    const int idx = x + y * width;
+    const float currentZ = zbuffer[idx];
 
-              for (int y = startY; y < endY; y++) {
-                  for (int x = 0; x < width; x++) {
-                      const int idx = x + y * width;
-                      const float currentZ = target.zbuffer[idx];
+    if (currentZ <= -std::numeric_limits<float>::max() + SSAO_BACKGROUND_THRESHOLD) return -1.0f;
+    float occlusion = 0.0f;
+    Vec2f rot = noise[(x % 4) + (y % 4) * 4];
 
-                      if (currentZ <= -std::numeric_limits<float>::max() + SSAO_BACKGROUND_THRESHOLD) continue;
+    for (int i = 0; i < SSAO_RANDOM_PIXEL_SAMPLES; i++) {
+        float rx = kernel[i].x() * rot.x() - kernel[i].y() * rot.y();
+        float ry = kernel[i].x() * rot.y() + kernel[i].y() * rot.x();
 
-                      float occlusion = 0.0f;
-                      Vec2f rot = noise[(x % 4) + (y % 4) * 4];
+        int sx = x + static_cast<int>(rx * SSAO_SAMPLE_RADIUS);
+        int sy = y + static_cast<int>(ry * SSAO_SAMPLE_RADIUS);
 
-                      for (int i = 0; i < SSAO_RANDOM_PIXEL_SAMPLES; i++) {
-                          float rx = kernel[i].x() * rot.x() - kernel[i].y() * rot.y();
-                          float ry = kernel[i].x() * rot.y() + kernel[i].y() * rot.x();
+        if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
+            const float sampleZ = zbuffer[sx + sy * width];
 
-                          int sx = x + static_cast<int>(rx * SSAO_SAMPLE_RADIUS);
-                          int sy = y + static_cast<int>(ry * SSAO_SAMPLE_RADIUS);
-
-                          if (sx >= 0 && sx < width && sy >= 0 && sy < height) {
-                              const float sampleZ = target.zbuffer[sx + sy * width];
-
-                              if (sampleZ > currentZ + SSAO_BIAS) {
-                                  const float dist = std::abs(currentZ - sampleZ);
-                                  if (dist < SSAO_MAX_OCCLUSION_DISTANCE) {
-                                      occlusion += 1.0f;
-                                  }
-                              }
-                          }
-                      }
-
-                      const float intensity = 1.0f - std::min(1.0f, (occlusion / SSAO_RANDOM_PIXEL_SAMPLES) * SSAO_STRENGTH);
-
-                      const int offset = idx * 3;
-                      rawFB[offset]     = static_cast<uint8_t>(rawFB[offset]     * intensity);
-                      rawFB[offset + 1] = static_cast<uint8_t>(rawFB[offset + 1] * intensity);
-                      rawFB[offset + 2] = static_cast<uint8_t>(rawFB[offset + 2] * intensity);
-                  }
-              }
-        });
+            if (sampleZ > currentZ + SSAO_BIAS) {
+                const float dist = std::abs(currentZ - sampleZ);
+                if (dist < SSAO_MAX_OCCLUSION_DISTANCE) {
+                    occlusion += 1.0f;
+                }
+            }
+        }
     }
 
-    ThreadPool::instance().waitFinished();
+     return 1.0f - std::min(1.0f, (occlusion / SSAO_RANDOM_PIXEL_SAMPLES) * SSAO_STRENGTH);
 }

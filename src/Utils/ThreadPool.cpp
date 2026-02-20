@@ -1,6 +1,6 @@
 #include "../Utils/ThreadPool.h"
 
-ThreadPool::ThreadPool(size_t threads) {
+ThreadPool::ThreadPool(const size_t threads) {
     for (size_t i = 0; i < threads; i++) {
         workers.emplace_back([this] {
             while (true) {
@@ -30,7 +30,8 @@ ThreadPool::ThreadPool(size_t threads) {
     }
 }
 
-void ThreadPool::enqueue(std::function<void()> task) {
+void ThreadPool::enqueue(std::function<void()> task)
+{
     {
         std::unique_lock<std::mutex> lock(queueMutex);
         tasks.push(std::move(task));
@@ -40,7 +41,8 @@ void ThreadPool::enqueue(std::function<void()> task) {
     condition.notify_one();
 }
 
-void ThreadPool::waitFinished() {
+void ThreadPool::waitFinished()
+{
     std::unique_lock<std::mutex> lock(queueMutex);
 
     finishedCondition.wait(lock, [this]() {
@@ -48,7 +50,8 @@ void ThreadPool::waitFinished() {
     });
 }
 
-ThreadPool::~ThreadPool() {
+ThreadPool::~ThreadPool()
+{
     {
         std::unique_lock<std::mutex> lock(queueMutex);
         stop = true;

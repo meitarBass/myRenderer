@@ -20,11 +20,11 @@ public:
         }
     }
 
-    const std::vector<Face>& getFaces() const { return faces; }
+    [[nodiscard]] const std::vector<Face>& getFaces() const { return faces; }
     std::vector<Face>& getFaces() { return faces; }
-    const std::vector<Vec3f>& getVertices() const { return vertices; }
-    const std::vector<Vec3f>& getVerticesNormals() const { return normals; }
-    const std::vector<Vec2f>& getVerticesTexture() const { return textures; }
+    [[nodiscard]] const std::vector<Vec3f>& getVertices() const { return vertices; }
+    [[nodiscard]] const std::vector<Vec3f>& getVerticesNormals() const { return normals; }
+    [[nodiscard]] const std::vector<Vec2f>& getVerticesTexture() const { return textures; }
 
 private:
     void loadFile(const std::string &fileName);

@@ -55,9 +55,7 @@ bool scene1() {
     floorModel.position = {0.0, 0.0, -2.0};
 
     scene.addModel(floorModel);
-
-    auto re = Renderer{};
-    re.render(scene, rb);
+    Renderer::render(scene, rb);
 
     bool res = rb.framebuffer.write_tga_file("final_scene.tga");
     std::cout << "Done! Saved diablo_scene.tga" << std::endl;
@@ -88,8 +86,7 @@ bool scene2() {
     scene.addModel(eyes_in);
     scene.addModel(eyes_out);
 
-    auto re = Renderer{};
-    re.render(scene, rb);
+    Renderer::render(scene, rb);
 
     bool res = rb.framebuffer.write_tga_file("final_scene.tga");
     std::cout << "Done! Saved diablo_scene.tga" << std::endl;
@@ -122,8 +119,7 @@ bool scene3() {
 
     scene.addModel(floorModel);
 
-    auto re = Renderer{};
-    re.render(scene, rb);
+    Renderer::render(scene, rb);
 
     bool res = rb.framebuffer.write_tga_file("final_scene.tga");
     std::cout << "Done! Saved diablo_scene.tga" << std::endl;

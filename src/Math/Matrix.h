@@ -29,16 +29,19 @@ public:
     Matrix& operator=(const Matrix &other) = default;
     Matrix& operator=(Matrix &&other) noexcept = default;
 
-    Vec<T, M>& operator[](const int i) {
+    Vec<T, M>& operator[](const int i)
+    {
         return columns[i];
     }
 
-    const Vec<T , M>& operator[](const int i) const {
+    const Vec<T , M>& operator[](const int i) const
+    {
         return columns[i];
     }
 
     template <int K>
-    Matrix<T, M, K> operator*(const Matrix<T, N, K>& other) const {
+    Matrix<T, M, K> operator*(const Matrix<T, N, K>& other) const
+    {
         Matrix<T, M, K> res = Matrix<T, M, K>(0);
         for (int col = 0 ; col < K; col++) {
             res[col] = (*this) * other[col];
@@ -46,7 +49,8 @@ public:
         return res;
     }
 
-    Vec<T, M> operator*(const Vec<T, N>& v) const {
+    Vec<T, M> operator*(const Vec<T, N>& v) const
+    {
         Vec<T, M> res = {};
         for (int col = 0 ; col < N; col++) {
             res = res + (columns[col] * v[col]);
@@ -54,7 +58,8 @@ public:
         return res;
     }
 
-    Matrix<T, N, M> transpose() const {
+    [[nodiscard]] Matrix<T, N, M> transpose() const
+    {
         Matrix<T, N, M> res(0);
         for (int col = 0; col < N; col++) {
             for (int row = 0; row < M; row++) {
@@ -64,11 +69,13 @@ public:
         return res;
     }
 
-    static Matrix<T, M, N> identity() {
-        return Matrix<T, M, N>{1};
+    static Matrix identity()
+    {
+        return Matrix{1};
     }
 
-    static Matrix<float, 4, 4> translation(const Vec3f& v) {
+    static Matrix<float, 4, 4> translation(const Vec3f& v)
+    {
         Matrix<float, 4, 4> mat;
 
         mat[0][0] = 1.0f;
@@ -83,7 +90,8 @@ public:
         return mat;
     }
 
-    static Matrix<float, 4, 4> scale(const float sx, const float sy, const float sz) {
+    static Matrix<float, 4, 4> scale(const float sx, const float sy, const float sz)
+    {
 
         Matrix<float, 4, 4> mat;
 
@@ -95,7 +103,8 @@ public:
         return mat;
     }
 
-    static Matrix<float, 4, 4> lookat(const Vec3f& eye, const Vec3f& center, const Vec3f& up) {
+    static Matrix<float, 4, 4> lookat(const Vec3f& eye, const Vec3f& center, const Vec3f& up)
+    {
         Vec3f z = (eye - center).normalize();
         Vec3f x = cross(up, z).normalize();
         Vec3f y = cross(z, x).normalize();
@@ -122,17 +131,21 @@ public:
         return res;
     }
 
-    static Matrix<float, 4, 4> projection(float cameraDist) {
+    static Matrix<float, 4, 4> projection(const float cameraDist) {
         // Perspective Projection
         auto res = Matrix<float, 4, 4>::identity();
         res[2][3] = -1.f / cameraDist;
         return res;
     }
 
-    static Matrix<float, 4, 4> perspective(float fovy, float aspect, float near, float far) {
-        float angle = GraphicsUtils::angleToRadians(fovy);
-        float f = 1.0f / std::tan(angle / 2.0f);
-        Matrix<float, 4, 4> res(0);
+    static Matrix<float, 4, 4> perspective(const float fov,
+                                           const float aspect,
+                                           const float near,
+                                           const float far)
+    {
+        const float angle = GraphicsUtils::angleToRadians(fov);
+        const float f = 1.0f / std::tan(angle / 2.0f);
+        Matrix<float, 4, 4> res;
 
         res[0][0] = f / aspect;
         res[1][1] = f;
@@ -143,7 +156,8 @@ public:
         return res;
     }
 
-    static Matrix<float, 4, 4> rotationX(float angle) {
+    static Matrix<float, 4, 4> rotationX(float angle)
+    {
         static_assert(N == M && N == 4);
         angle = GraphicsUtils::angleToRadians(angle);
 
@@ -156,7 +170,8 @@ public:
         return res;
     }
 
-    static Matrix<float, 4, 4> rotationY(float angle) {
+    static Matrix<float, 4, 4> rotationY(float angle)
+    {
         static_assert(N == M && N == 4);
         angle = GraphicsUtils::angleToRadians(angle);
 
@@ -171,7 +186,8 @@ public:
     }
 
 
-    static Matrix<float, 4, 4> rotationZ(float angle) {
+    static Matrix<float, 4, 4> rotationZ(float angle)
+    {
         static_assert(N == M && N == 4);
         angle = GraphicsUtils::angleToRadians(angle);
 
@@ -186,7 +202,8 @@ public:
 
     static Matrix<float, 4, 4> shear(const float xy, const float xz,
                                      const float yx, const float yz,
-                                     const float zx, const float zy) {
+                                     const float zx, const float zy)
+    {
         Matrix<float, 4, 4> res;
         res[0][0] = 1.0f; res[1][1] = 1.0f, res[2][2] = 1.0f, res[3][3] = 1.0f;
         res[1][0] = xy;
@@ -199,7 +216,11 @@ public:
         return res;
     }
 
-    static Matrix<float, 4, 4> viewport(const float x, const  float y, const float w, const float h) {
+    static Matrix<float, 4, 4> viewport(const float x,
+                                        const  float y,
+                                        const float w,
+                                        const float h)
+    {
         Matrix<float, 4, 4> m;
 
         m[0][0] = w / 2.f;
@@ -214,7 +235,8 @@ public:
         return m;
     }
 
-    Matrix<float, 3, 3> inverseTranspose3x3() const {
+    [[nodiscard]] Matrix<float, 3, 3> inverseTranspose3x3() const
+    {
         Matrix<float, 3, 3> res;
 
         const float m00 = columns[0][0], m01 = columns[1][0], m02 = columns[2][0];
@@ -225,7 +247,7 @@ public:
                     m01 * (m10 * m22 - m12 * m20) +
                     m02 * (m10 * m21 - m11 * m20);
 
-        if (std::abs(det) < GraphicsUtils::EPSILON) return Matrix<float, 3, 3>(1.0f);
+        if (std::abs(det) < GraphicsUtils::EPSILON) return {1.0f};
 
         const float invDet = 1.0f / det;
 

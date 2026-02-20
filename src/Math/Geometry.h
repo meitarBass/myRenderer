@@ -28,6 +28,12 @@ struct Face {
         }
     }
 
+    /**
+     *
+     * @param modelVertices   structure contains the OBJ file vertices.
+     * @param modelNormals  structure contains the OBJ normals indices.
+     * @param modelTexture  structure contains the OBJ texture indices.
+     */
     void updateFace(const std::vector<Point3>& modelVertices,
                     const std::vector<Point3>& modelNormals,
                     const std::vector<Vec2f>& modelTexture) {

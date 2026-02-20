@@ -11,6 +11,13 @@ public:
                 const Uniforms &uniforms,
                 bool useAlphaTest);
 
+
+    /**
+     * Calculates the vertex position from the camera perspective
+     * in order to later determine the pixel's color.
+     * 
+     * Please see IShader.h
+     */
     Varyings vertex(const Vec3f &localPos,
                     const Vec3f &normal,
                     const Vec2f &uv,
@@ -18,6 +25,12 @@ public:
                     const Vec3f &bitangent) override;
 
 
+    /**
+     * Determines the pixel's color using lighting, shadow,
+     * and the input TGAColor.
+     *
+     * Please see IShader.h
+     */
     bool fragment(Varyings &varyings, TGAColor &color) override;
 
 private:
@@ -27,7 +40,12 @@ private:
     const bool useAlphaTest;
 
     float calculateShadowFactor(const Vec3f& worldPos) const;
-    Vec3f calculateNormal(const Vec2f& uv, const Vec3f& T, const Vec3f& B, const Vec3f& N) const;
+
+    Vec3f calculateNormal(const Vec2f& uv,
+                          const Vec3f& T,
+                          const Vec3f& B,
+                          const Vec3f& N) const;
+
     void calculateLighting(const Vec3f& normal,
                            const Vec3f& worldPos,
                            const Vec2f& uv,

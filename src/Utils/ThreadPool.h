@@ -17,7 +17,17 @@ public:
         return pool;
     }
 
+
+    /**
+     * @brief Enqueue a new task to the queue for the threads to handle.
+     *
+     * @param task                                   new task to handle.
+     */
     void enqueue(std::function<void()> task);
+
+    /**
+     * @brief  check and wait for all threads to finish with their work.
+     */
     void waitFinished();
 
 private:

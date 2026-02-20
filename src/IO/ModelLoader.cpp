@@ -1,6 +1,7 @@
 #include "ModelLoader.h"
 
-void ModelLoader::loadFile(const std::string &fileName) {
+void ModelLoader::loadFile(const std::string &fileName)
+{
     std::ifstream inputFile(fileName);
 
     if(!inputFile.is_open()) {

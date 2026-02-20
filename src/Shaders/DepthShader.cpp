@@ -1,11 +1,17 @@
 
 #include "DepthShader.h"
 
-DepthShader::DepthShader(const Uniforms& uniforms) {
+DepthShader::DepthShader(const Uniforms& uniforms)
+{
     this->uniforms = uniforms;
 }
 
-Varyings DepthShader::vertex(const Vec3f& localPos, const Vec3f& normal, const Vec2f& uv, const Vec3f& tangent, const Vec3f& bitangent) {
+Varyings DepthShader::vertex(const Vec3f& localPos,
+                             const Vec3f& normal,
+                             const Vec2f& uv,
+                             const Vec3f& tangent,
+                             const Vec3f& bitangent)
+{
     Varyings out;
 
     Vec4f clip = uniforms.projection * uniforms.modelView * Vec4f(localPos);
@@ -19,6 +25,7 @@ Varyings DepthShader::vertex(const Vec3f& localPos, const Vec3f& normal, const V
     return out;
 }
 
-bool DepthShader::fragment(Varyings& varyings, TGAColor &color)  {
+bool DepthShader::fragment(Varyings& varyings, TGAColor &color)
+{
     return false;
 }

@@ -15,7 +15,8 @@ struct ProcessedTriangle {
     Varyings varyings[3];
 };
 
-Point3 barycentric(const Vec2f& A, const Vec2f& B, const Vec2f& C, const Vec2f& P) {
+Point3 barycentric(const Vec2f& A, const Vec2f& B, const Vec2f& C, const Vec2f& P)
+{
     const Vec2f v0 = B - A;
     const Vec2f v1 = C - A;
     const Vec2f v2 = P - A;
@@ -30,7 +31,8 @@ Point3 barycentric(const Vec2f& A, const Vec2f& B, const Vec2f& C, const Vec2f& 
     return { alpha, beta, gamma };
 }
 
-BBox computeTriangleBBox(const Vec3f pts[3]) {
+BBox computeTriangleBBox(const Vec3f pts[3])
+{
     Vec2f minVal(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
     Vec2f maxVal(-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max());
 
@@ -44,7 +46,8 @@ BBox computeTriangleBBox(const Vec3f pts[3]) {
 }
 
 void drawTriangleClipped(const Varyings varyings[3], IShader &shader, const RenderContext &ctx,
-                         const int tileMinX, const int tileMinY, const int tileMaxX, const int tileMaxY) {
+                         const int tileMinX, const int tileMinY, const int tileMaxX, const int tileMaxY)
+{
     Vec3f pts[3] = { varyings[0].screenPos, varyings[1].screenPos, varyings[2].screenPos };
     BBox bbox = computeTriangleBBox(pts);
 
@@ -80,7 +83,8 @@ void drawTriangleClipped(const Varyings varyings[3], IShader &shader, const Rend
     }
 }
 
-std::pair<Vec3f, Vec3f> calculateTriangleBasis(const Vec3f pts[3], const Vec2f uvs[3]) {
+std::pair<Vec3f, Vec3f> calculateTriangleBasis(const Vec3f pts[3], const Vec2f uvs[3])
+{
     Vec3f edge1 = pts[1] - pts[0];
     Vec3f edge2 = pts[2] - pts[0];
 
@@ -101,7 +105,8 @@ std::pair<Vec3f, Vec3f> calculateTriangleBasis(const Vec3f pts[3], const Vec2f u
     return {tangent.normalize(), bitangent.normalize()};
 }
 
-inline std::vector<ProcessedTriangle> preProcessVertices(const ModelLoader& model, IShader& shader) {
+inline std::vector<ProcessedTriangle> preProcessVertices(const ModelLoader& model, IShader& shader)
+{
     const auto& faces = model.getFaces();
     std::vector<ProcessedTriangle> processed;
     processed.reserve(faces.size());
@@ -112,7 +117,8 @@ inline std::vector<ProcessedTriangle> preProcessVertices(const ModelLoader& mode
         ProcessedTriangle pt;
 
         for (int j = 0; j < 3; j++) {
-            pt.varyings[j] = shader.vertex(face.pts[j], face.normals[j], face.uv[j], tangent, bitangent);
+            pt.varyings[j] =
+                shader.vertex(face.pts[j], face.normals[j], face.uv[j], tangent, bitangent);
         }
 
         const Vec3f& p0 = pt.varyings[0].screenPos;
@@ -129,11 +135,18 @@ inline std::vector<ProcessedTriangle> preProcessVertices(const ModelLoader& mode
     return processed;
 }
 
-inline std::vector<Tile> binTrianglesToTiles(const std::vector<ProcessedTriangle>& triangles, int width, int height, int numTilesX, int numTilesY) {
+inline std::vector<Tile> binTrianglesToTiles(const std::vector<ProcessedTriangle>& triangles,
+                                             int width,
+                                             int height,
+                                             const int numTilesX,
+                                             const int numTilesY)
+{
     std::vector<Tile> tiles(numTilesX * numTilesY);
 
     for (size_t i = 0; i < triangles.size(); ++i) {
-        Vec3f screenPts[3] = { triangles[i].varyings[0].screenPos, triangles[i].varyings[1].screenPos, triangles[i].varyings[2].screenPos };
+        Vec3f screenPts[3] = { triangles[i].varyings[0].screenPos,
+                               triangles[i].varyings[1].screenPos,
+                               triangles[i].varyings[2].screenPos };
         BBox bbox = computeTriangleBBox(screenPts);
 
         const int minTx = std::max(0, (int)(bbox._boxMin.x() / TILE_SIZE));
@@ -150,9 +163,14 @@ inline std::vector<Tile> binTrianglesToTiles(const std::vector<ProcessedTriangle
     return tiles;
 }
 
-inline void tileWorker(std::atomic<int>& nextTileIndex, const int totalTiles, const std::vector<Tile>& tiles,
-                const std::vector<ProcessedTriangle>& processedTriangles, IShader& shader,
-                const RenderContext& ctx, const int numTilesX) {
+inline void tileWorker(std::atomic<int>& nextTileIndex,
+                       const int totalTiles,
+                       const std::vector<Tile>& tiles,
+                       const std::vector<ProcessedTriangle>& processedTriangles,
+                       IShader& shader,
+                       const RenderContext& ctx,
+                       const int numTilesX)
+{
     int tileIdx;
     while ((tileIdx = nextTileIndex.fetch_add(1)) < totalTiles) {
         const auto& tile = tiles[tileIdx];
@@ -172,20 +190,29 @@ inline void tileWorker(std::atomic<int>& nextTileIndex, const int totalTiles, co
     }
 }
 
-void drawModel(const RenderContext &ctx, IShader& shader) {
+void drawModel(const RenderContext &ctx, IShader& shader)
+{
     const int numTilesX = (ctx.width + TILE_SIZE - 1) / TILE_SIZE;
     const int numTilesY = (ctx.height + TILE_SIZE - 1) / TILE_SIZE;
 
     const auto processedTriangles = preProcessVertices(ctx.model, shader);
-    const auto tiles = binTrianglesToTiles(processedTriangles, ctx.width, ctx.height, numTilesX, numTilesY);
+    const auto tiles = binTrianglesToTiles(processedTriangles,
+                                                      ctx.width,
+                                                      ctx.height,
+                                                      numTilesX,
+                                                      numTilesY);
 
     std::atomic<int> nextTileIndex{0};
     const unsigned int numThreads = std::max(1u, std::thread::hardware_concurrency());
 
     for (unsigned int t = 0; t < numThreads; ++t) {
         ThreadPool::instance().enqueue([&, t]() {
-            tileWorker(std::ref(nextTileIndex), static_cast<int>(tiles.size()), std::cref(tiles),
-          std::cref(processedTriangles), std::ref(shader), std::cref(ctx), numTilesX);
+            tileWorker(std::ref(nextTileIndex),
+                     static_cast<int>(tiles.size()),
+                     std::cref(tiles),
+          std::cref(processedTriangles),
+                 std::ref(shader),
+                      std::cref(ctx), numTilesX);
         });
     }
 
