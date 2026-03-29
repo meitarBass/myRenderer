@@ -38,7 +38,7 @@ This renderer is a deep dive into the **Graphics Pipeline**, **Linear Algebra**,
 
 ### 🛠️ How to Build
 ```bash
-git clone [https://github.com/YourUsername/YourRepoName.git](https://github.com/YourUsername/YourRepoName.git)
+git clone https://github.com/meitarBass/myRenderer
 cd YourRepoName
 mkdir build && cd build
 cmake ..
