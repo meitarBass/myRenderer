@@ -16,7 +16,8 @@
  * hence the reset function.
  */
 struct RenderBuffers {
-    TGAImage framebuffer;
+    std::vector<unsigned char> colorBuffer;
+
     std::vector<float> zbuffer;
     std::vector<Vec3f> normalBuffer;
     std::vector<float> shadowMap;
@@ -30,7 +31,7 @@ struct RenderBuffers {
     RenderBuffers& operator=(RenderBuffers&&) = delete;
 
     RenderBuffers(const int w,  const int h, const int sw, const int sh)
-        : framebuffer(w, h, TGAImage::RGB),
+        : colorBuffer(w * h * 3, 0),
           zbuffer(w * h, -std::numeric_limits<float>::max()),
           normalBuffer(w * h, Vec3f(0, 0, 0)),
           shadowMap(sw * sh, -std::numeric_limits<float>::max()),
@@ -39,7 +40,7 @@ struct RenderBuffers {
 
     void reset()
     {
-        std::fill(framebuffer.buffer(), framebuffer.buffer() + (width * height * 3), 0);
+        std::ranges::fill(colorBuffer.begin(), colorBuffer.end(), 0);
         std::ranges::fill(zbuffer, -std::numeric_limits<float>::max());
         std::ranges::fill(normalBuffer, Vec3f(0, 0, 0));
         std::ranges::fill(shadowMap, -std::numeric_limits<float>::max());

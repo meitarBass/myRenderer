@@ -75,7 +75,12 @@ void drawTriangleClipped(const Varyings varyings[3], IShader &shader, const Rend
                 Varyings pixelVaryings = IShader::interpolate(varyings[0], varyings[1], varyings[2], bc);
                 if (!shader.fragment(pixelVaryings, color)) {
                     ctx.zbuffer[index] = z;
-                    if (ctx.framebuffer) ctx.framebuffer->set(x, y, color);
+                    if (ctx.colorBuffer) {
+                        int colorIdx = index * 3;
+                        (* ctx.colorBuffer)[colorIdx] = color.bgra[2];
+                        (* ctx.colorBuffer)[colorIdx + 1] = color.bgra[1];
+                        (* ctx.colorBuffer)[colorIdx + 2] = color.bgra[0];
+                    }
                     if (ctx.normalBuffer) (*ctx.normalBuffer)[index] = varyings->normalForBuffer;
                 }
             }

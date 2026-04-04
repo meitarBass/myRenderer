@@ -7,12 +7,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -fno-omit-frame-pointer")
 
-#if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-#        add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
-#        add_link_options(-fsanitize=address)
-#endif()
-
-# Include directories
 include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Core
@@ -22,7 +16,6 @@ include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/tests
 )
 
-# Executable
 add_executable(Renderer
         src/IO/tgaimage.cpp
         src/IO/ModelLoader.cpp
@@ -43,4 +36,20 @@ add_executable(Renderer
         src/Renderer/Renderer.h
         src/Utils/ThreadPool.cpp
         src/Utils/ThreadPool.h
+        external/glad/src/glad.c
 )
+
+target_include_directories(Renderer PRIVATE external/glad/include)
+
+target_link_libraries(Renderer PRIVATE glfw
+        "-framework OpenGL"
+        "-framework Cocoa"
+        "-framework IOKit"
+        "-framework CoreVideo"
+)
+
+find_package(glfw3 3.4 REQUIRED)
+find_package(OpenGL REQUIRED)
+
+target_link_libraries(Renderer PRIVATE glfw "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
+
