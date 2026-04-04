@@ -13,7 +13,7 @@
 struct RenderContext {
     const ModelLoader &model;
     std::vector<float>& zbuffer;
-    TGAImage* framebuffer = nullptr;
+    std::vector<unsigned char>* colorBuffer = nullptr;
     std::vector<Vec3f>* normalBuffer = nullptr;
     int width = 0;
     int height = 0;

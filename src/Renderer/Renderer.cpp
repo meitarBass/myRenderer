@@ -7,7 +7,7 @@
 
 void Renderer::render(const Scene& scene, RenderBuffers& target)
 {
-    const Matrix4f4 lightView = Matrix4f4::lookat(scene.lightPos, scene.camera.lookAt, scene.camera.up);
+    const Matrix4f4 lightView = Matrix4f4::lookat(scene.lightPos, Vec3f(0.0f, 0.0f, 0.0f), Vec3f(0.0f, 1.0f, 0.0f));
     const Matrix4f4 lightProj = Matrix4f4::projection(LIGHT_PROJECTION_SIZE);
     const Matrix4f4 lightProjView = lightProj * lightView;
 
@@ -22,7 +22,7 @@ void Renderer::render(const Scene& scene, RenderBuffers& target)
 
     // --- STEP 3: Apply SSAO ---
     std::cout << "3. Applying SSAO..." << std::endl;
-    applySSAO(target);
+    // applySSAO(target);
 }
 
 void Renderer::runShadowPass(const Scene& scene,
@@ -78,13 +78,13 @@ void Renderer::runColorPass(const Scene& scene,
         PhongShader shader(object.diffuse, object.normal, object.specular, uniforms, object.useAlphaTest);
 
         RenderContext ctx = { object.model, target.zbuffer,
-                              &target.framebuffer, &target.normalBuffer,
+                              &target.colorBuffer, &target.normalBuffer,
                               target.width, target.height };
         drawModel(ctx, shader);
     }
 }
 
-void Renderer::applySSAO(RenderBuffers& target)
+/* void Renderer::applySSAO(RenderBuffers& target)
 {
     const int width = target.width;
     const int height = target.height;
@@ -121,8 +121,7 @@ void Renderer::applySSAO(RenderBuffers& target)
     }
 
     ThreadPool::instance().waitFinished();
-}
-
+} */
 
 
 void Renderer::initSSAOSamples(std::vector<Vec2f>& kernel, std::vector<Vec2f>& noise)
