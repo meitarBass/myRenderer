@@ -265,6 +265,50 @@ public:
 
         return res;
     }
+
+    [[nodiscard]] Matrix<float, 4, 4> inverse4x4() const
+    {
+        static_assert(N == 4 && M == 4, "Inverse requires 4x4 matrix");
+        Matrix<float, 4, 4> inv;
+
+        const float m00 = columns[0][0], m01 = columns[0][1], m02 = columns[0][2], m03 = columns[0][3];
+        const float m10 = columns[1][0], m11 = columns[1][1], m12 = columns[1][2], m13 = columns[1][3];
+        const float m20 = columns[2][0], m21 = columns[2][1], m22 = columns[2][2], m23 = columns[2][3];
+        const float m30 = columns[3][0], m31 = columns[3][1], m32 = columns[3][2], m33 = columns[3][3];
+
+        inv[0][0] = m11*(m22*m33 - m32*m23) - m21*(m12*m33 - m32*m13) + m31*(m12*m23 - m22*m13);
+        inv[0][1] = -(m01*(m22*m33 - m32*m23) - m21*(m02*m33 - m32*m03) + m31*(m02*m23 - m22*m03));
+        inv[0][2] = m01*(m12*m33 - m32*m13) - m11*(m02*m33 - m32*m03) + m31*(m02*m13 - m12*m03);
+        inv[0][3] = -(m01*(m12*m23 - m22*m13) - m11*(m02*m23 - m22*m03) + m21*(m02*m13 - m12*m03));
+
+        inv[1][0] = -(m10*(m22*m33 - m32*m23) - m20*(m12*m33 - m32*m13) + m30*(m12*m23 - m22*m13));
+        inv[1][1] = m00*(m22*m33 - m32*m23) - m20*(m02*m33 - m32*m03) + m30*(m02*m23 - m22*m03);
+        inv[1][2] = -(m00*(m12*m33 - m32*m13) - m10*(m02*m33 - m32*m03) + m30*(m02*m13 - m12*m03));
+        inv[1][3] = m00*(m12*m23 - m22*m13) - m10*(m02*m23 - m22*m03) + m20*(m02*m13 - m12*m03);
+
+        inv[2][0] = m10*(m21*m33 - m31*m23) - m20*(m11*m33 - m31*m13) + m30*(m11*m23 - m21*m13);
+        inv[2][1] = -(m00*(m21*m33 - m31*m23) - m20*(m01*m33 - m31*m03) + m30*(m01*m23 - m21*m03));
+        inv[2][2] = m00*(m11*m33 - m31*m13) - m10*(m01*m33 - m31*m03) + m30*(m01*m13 - m11*m03);
+        inv[2][3] = -(m00*(m11*m23 - m21*m13) - m10*(m01*m23 - m21*m03) + m20*(m01*m13 - m11*m03));
+
+        inv[3][0] = -(m10*(m21*m32 - m31*m22) - m20*(m11*m32 - m31*m12) + m30*(m11*m22 - m21*m12));
+        inv[3][1] = m00*(m21*m32 - m31*m22) - m20*(m01*m32 - m31*m02) + m30*(m01*m22 - m21*m02);
+        inv[3][2] = -(m00*(m11*m32 - m31*m12) - m10*(m01*m32 - m31*m02) + m30*(m01*m12 - m11*m02));
+        inv[3][3] = m00*(m11*m22 - m21*m12) - m10*(m01*m22 - m21*m02) + m20*(m01*m12 - m11*m02);
+
+        const float det = m00 * inv[0][0] + m10 * inv[0][1] + m20 * inv[0][2] + m30 * inv[0][3];
+
+        if (std::abs(det) < GraphicsUtils::EPSILON) return Matrix<float, 4, 4>::identity();
+
+        const float invDet = 1.0f / det;
+        for (int col = 0; col < 4; col++) {
+            for (int row = 0; row < 4; row++) {
+                inv[col][row] *= invDet;
+            }
+        }
+
+        return inv;
+    }
 };
 
 using Matrix4f4 = Matrix<float, 4, 4>;

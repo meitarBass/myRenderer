@@ -13,16 +13,13 @@ void Renderer::render(const Scene& scene, RenderBuffers& target)
 
     target.reset();
     // --- STEP 1: Shadow Pass ---
-    std::cout << "1. Running Shadow Pass..." << std::endl;
     runShadowPass(scene, target, lightProjView);
 
     // --- STEP 2: Fill Z-Buffer (Crucial for SSAO) ---
-    std::cout << "2. Filling Depth Buffer..." << std::endl;
     runColorPass(scene, target, lightProjView);
 
     // --- STEP 3: Apply SSAO ---
-    std::cout << "3. Applying SSAO..." << std::endl;
-    // applySSAO(target);
+    applySSAO(target);
 }
 
 void Renderer::runShadowPass(const Scene& scene,
@@ -84,12 +81,12 @@ void Renderer::runColorPass(const Scene& scene,
     }
 }
 
-/* void Renderer::applySSAO(RenderBuffers& target)
+void Renderer::applySSAO(RenderBuffers& target)
 {
     const int width = target.width;
     const int height = target.height;
 
-    std::uint8_t* rawFB = target.framebuffer.buffer();
+    std::uint8_t* rawFB = target.colorBuffer.data();
 
     static std::vector<Vec2f> kernel;
     static std::vector<Vec2f> noise;
@@ -121,7 +118,7 @@ void Renderer::runColorPass(const Scene& scene,
     }
 
     ThreadPool::instance().waitFinished();
-} */
+}
 
 
 void Renderer::initSSAOSamples(std::vector<Vec2f>& kernel, std::vector<Vec2f>& noise)

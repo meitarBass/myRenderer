@@ -37,6 +37,9 @@ add_executable(Renderer
         src/Utils/ThreadPool.cpp
         src/Utils/ThreadPool.h
         external/glad/src/glad.c
+        src/Core/Application.h
+        src/Shaders/ScreenShader.h
+        src/Core/Application.cpp
 )
 
 target_include_directories(Renderer PRIVATE external/glad/include)
