@@ -4,6 +4,9 @@
 #include "../external/imgui/imgui_impl_glfw.h"
 #include "../external/imgui/imgui_impl_opengl3.h"
 
+#include <filesystem>
+namespace fs = std::filesystem;
+
 bool Application::initWindow() {
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW" << std::endl;
@@ -130,56 +133,8 @@ void Application::buildScene() {
     glUniform1i(glGetUniformLocation(shaderProgram, "screenTexture"), 0);
     ///
 
-
-    const std::string diabloRoot = "../Models/obj/diablo3_pose/";
-    const std::string headRoot = "../Models/obj/african_head/";
     constexpr std::string floorRoot = "../Models/obj/";
-
-    auto diabloRes = std::make_shared<ModelResource>(diabloRoot, "diablo3_pose.obj", "diablo3_pose_diffuse.tga",
-                                     "diablo3_pose_nm_tangent.tga", "diablo3_pose_spec.tga");
-    ModelInstance d1(diabloRes, false);
-    d1.rotation = {0, 40, 0};
-    d1.scale = {0.55, 0.55, 0.55};
-    d1.position = {-0.5, -0.42, -1.5};
-
-    scene.addModel(d1);
-
-    ModelInstance d2(diabloRes, false);
-    d2.rotation = {0, -50, 0};
-    d2.scale = {0.45, 0.45, 0.45};
-    d2.position = {1.3, -0.53, -2.8};
-
-    scene.addModel(d2);
-
-    ModelInstance d3(diabloRes, false);
-    d3.rotation = {0, 100, 0};
-    d3.scale = {0.35, 0.35, 0.35};
-    d3.position = {-1.15, -0.60, -0.1};
-
-    scene.addModel(d3);
-
-    auto headRes = std::make_shared<ModelResource>(
-        headRoot, "african_head.obj", "african_head_diffuse.tga",
-        "african_head_nm_tangent.tga", "african_head_spec.tga");
-    auto eyesInRes = std::make_shared<ModelResource>(
-        headRoot, "african_head_eye_inner.obj", "african_head_eye_inner_diffuse.tga",
-        "african_head_eye_inner_nm_tangent.tga", "african_head_eye_inner_spec.tga");
-
-    ModelInstance head(headRes, false);
-    ModelInstance eyesIn(eyesInRes, false);
-    head.rotation = {-20, 10, 0};
-    eyesIn.rotation = {-20, 10, 0};
-
-    head.scale = {0.6, 0.6, 0.6};
-    eyesIn.scale = {0.6, 0.6, 0.6};
-
-    head.position = {0, -0.6, -1.2};
-    eyesIn.position = {0, -0.6, -1.2};
-
-    scene.addModel(head);
-    scene.addModel(eyesIn);
-
-    auto floorRes = std::make_shared<ModelResource>(floorRoot, "floor.obj", "floor_diffuse.tga",
+    const auto floorRes = std::make_shared<ModelResource>(floorRoot, "floor.obj", "floor_diffuse.tga",
                                              "floor_nm_tangent.tga", "floor_spec.tga");
     ModelInstance floorModel(floorRes, false);
 
@@ -270,6 +225,32 @@ void Application::run() {
         ImGui::SetNextWindowPos(ImVec2(10, 10));
         ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
         ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
+
+        ImGui::End();
+
+        // Model Loader
+        ImGui::Begin("Model Library");
+        std::string modelsPath = "../Models/obj/";
+
+        if (fs::exists(modelsPath)) {
+            for (const auto& entry : fs::directory_iterator(modelsPath)) {
+                if (entry.is_directory()) {
+                    std::string folderName = entry.path().filename().string();
+
+                    // כפתור לכל תיקייה שנמצאה
+                    if (ImGui::Button(("Add " + folderName).c_str())) {
+                        // אנחנו מניחים שהקבצים נקראים כמו התיקייה (למשל diablo3_pose.obj)
+                        addModelToScene(modelsPath + folderName + "/",
+                                        folderName + ".obj",
+                                        folderName + "_diffuse.tga",
+                                        folderName + "_nm_tangent.tga",
+                                        folderName + "_spec.tga");
+                    }
+                }
+            }
+        } else {
+            ImGui::TextColored(ImVec4(1,0,0,1), "Error: Models path not found!");
+        }
         ImGui::End();
 
         Vec3f front;
@@ -422,4 +403,19 @@ Vec3f Application::screenToWorldRay(const double mouseX, const double mouseY) {
 
     const Vec3f retVec = {rayWorld.x(), rayWorld.y(), rayWorld.z()};
     return retVec.normalize();
+}
+
+void Application::addModelToScene(const std::string& folderPath, const std::string& objFile,
+                                  const std::string& diffFile, const std::string& nmFile,
+                                  const std::string& specFile) {
+    std::string resourceKey = folderPath + objFile;
+    if (resourceCache.find(resourceKey) == resourceCache.end()) {
+        resourceCache[resourceKey] = std::make_shared<ModelResource>(
+            folderPath, objFile, diffFile, nmFile, specFile
+        );
+    }
+
+    ModelInstance newModel(resourceCache[resourceKey], false);
+    newModel.position = { 0, 0, 0 };
+    scene.addModel(newModel);
 }
