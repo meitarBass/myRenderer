@@ -1,5 +1,9 @@
 #include "Application.h"
 
+#include "../external/imgui/imgui.h"
+#include "../external/imgui/imgui_impl_glfw.h"
+#include "../external/imgui/imgui_impl_opengl3.h"
+
 bool Application::initWindow() {
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW" << std::endl;
@@ -26,6 +30,15 @@ bool Application::initWindow() {
         std::cerr << "Failed to initialize GLAD\n";
         return false;
     }
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 410");
+
     return true;
 }
 
@@ -120,44 +133,54 @@ void Application::buildScene() {
     const std::string headRoot = "../Models/obj/african_head/";
     constexpr std::string floorRoot = "../Models/obj/";
 
-    auto diabloModel = ModelInstance(diabloRoot, "diablo3_pose.obj", "diablo3_pose_diffuse.tga",
-                                     "diablo3_pose_nm_tangent.tga", "diablo3_pose_spec.tga", false);
-    diabloModel.rotation = {0, 40, 0};
-    diabloModel.scale = {0.55, 0.55, 0.55};
-    diabloModel.position = {-0.5, -0.42, -1.5};
+    auto diabloRes = std::make_shared<ModelResource>(diabloRoot, "diablo3_pose.obj", "diablo3_pose_diffuse.tga",
+                                     "diablo3_pose_nm_tangent.tga", "diablo3_pose_spec.tga");
+    ModelInstance d1(diabloRes, false);
+    d1.rotation = {0, 40, 0};
+    d1.scale = {0.55, 0.55, 0.55};
+    d1.position = {-0.5, -0.42, -1.5};
 
-    scene.addModel(diabloModel);
+    scene.addModel(d1);
 
-    diabloModel.rotation = {0, -50, 0};
-    diabloModel.scale = {0.45, 0.45, 0.45};
-    diabloModel.position = {1.3, -0.53, -2.8};
+    ModelInstance d2(diabloRes, false);
+    d2.rotation = {0, -50, 0};
+    d2.scale = {0.45, 0.45, 0.45};
+    d2.position = {1.3, -0.53, -2.8};
 
-    scene.addModel(diabloModel);
+    scene.addModel(d2);
 
-    diabloModel.rotation = {0, 100, 0};
-    diabloModel.scale = {0.35, 0.35, 0.35};
-    diabloModel.position = {-1.15, -0.60, -0.1};
+    ModelInstance d3(diabloRes, false);
+    d3.rotation = {0, 100, 0};
+    d3.scale = {0.35, 0.35, 0.35};
+    d3.position = {-1.15, -0.60, -0.1};
 
-    scene.addModel(diabloModel);
+    scene.addModel(d3);
 
-    auto head = ModelInstance(headRoot, "african_head.obj", "african_head_diffuse.tga", "african_head_nm_tangent.tga",
-                              "african_head_spec.tga", false);
-    auto eyes_in = ModelInstance(headRoot, "african_head_eye_inner.obj", "african_head_eye_inner_diffuse.tga",
-                                 "african_head_eye_inner_nm_tangent.tga", "african_head_eye_inner_spec.tga", false);
+    auto headRes = std::make_shared<ModelResource>(
+        headRoot, "african_head.obj", "african_head_diffuse.tga",
+        "african_head_nm_tangent.tga", "african_head_spec.tga");
+    auto eyesInRes = std::make_shared<ModelResource>(
+        headRoot, "african_head_eye_inner.obj", "african_head_eye_inner_diffuse.tga",
+        "african_head_eye_inner_nm_tangent.tga", "african_head_eye_inner_spec.tga");
+
+    ModelInstance head(headRes, false);
+    ModelInstance eyesIn(headRes, false);
     head.rotation = {-20, 10, 0};
-    eyes_in.rotation = {-20, 10, 0};
+    eyesIn.rotation = {-20, 10, 0};
 
     head.scale = {0.6, 0.6, 0.6};
-    eyes_in.scale = {0.6, 0.6, 0.6};
+    eyesIn.scale = {0.6, 0.6, 0.6};
 
     head.position = {0, -0.6, -1.2};
-    eyes_in.position = {0, -0.6, -1.2};
+    eyesIn.position = {0, -0.6, -1.2};
 
     scene.addModel(head);
-    scene.addModel(eyes_in);
+    scene.addModel(eyesIn);
 
-    auto floorModel = ModelInstance(floorRoot, "floor.obj", "floor_diffuse.tga", "floor_nm_tangent.tga",
-                                    "floor_spec.tga", false);
+    auto floorRes = std::make_shared<ModelResource>(floorRoot, "floor.obj", "floor_diffuse.tga",
+                                             "floor_nm_tangent.tga", "floor_spec.tga");
+    ModelInstance floorModel(floorRes, false);
+
     floorModel.scale = {2.0, 1.0, 2.0};
     floorModel.position = {0.0, 0.0, -2.0};
     floorModel.isDeletable = false;
@@ -191,6 +214,47 @@ void Application::run() {
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::Begin("Scene Inspector");
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::Text("Performance: %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+
+        if (ImGui::Button("Reset Camera")) {
+            scene.camera.pos = {0, 0, 6};
+        }
+
+        ImGui::Separator();
+        ImGui::Text("Models in Scene:");
+
+        for (int i = 0; i < scene.models.size(); ++i) {
+            auto& model = scene.models[i];
+            std::string label = "Model " + std::to_string(i) + (model.isDeletable ? "" : " (Floor)");
+
+            if (ImGui::CollapsingHeader(label.c_str())) {
+                ImGui::PushID(i);
+
+                ImGui::SliderFloat3("Position", &model.position[0], -5.0f, 5.0f);
+                ImGui::SliderFloat3("Rotation", &model.rotation[0], 0.0f, 360.0f);
+                ImGui::SliderFloat("Scale", &model.scale[0], 0.1f, 3.0f);
+
+                if (model.isDeletable && ImGui::Button("Remove")) {
+                    scene.models.erase(scene.models.begin() + i);
+                }
+
+                ImGui::PopID();
+            }
+        }
+        ImGui::End();
+
+        // FPS
+        ImGui::SetNextWindowPos(ImVec2(10, 10));
+        ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
+        ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
+        ImGui::End();
+
         Vec3f front;
         front.x() = cos(yaw * M_PI / 180.0f) * cos(pitch * M_PI / 180.0f);
         front.y() = sin(pitch * M_PI / 180.0f);
@@ -217,7 +281,6 @@ void Application::run() {
             scene.camera.pos = scene.camera.pos - (right * speed);
         }
 
-
         scene.camera.lookAt = scene.camera.pos + forward;
         Renderer::render(scene, rb);
 
@@ -235,15 +298,27 @@ void Application::run() {
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     glfwDestroyWindow(window);
     glfwTerminate();
 }
 
 void Application::processMouseInput(const double xPos, const double yPos) {
+    if (glfwGetKey(window, GLFW_KEY_Q) != GLFW_PRESS) {
+        firstMouse = true;
+        return;
+    }
+
     if (firstMouse) {
         lastX = xPos;
         lastY = yPos;
