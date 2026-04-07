@@ -15,26 +15,19 @@ struct AABB {
     }
 };
 
-struct ModelInstance {
+struct ModelResource {
     ModelLoader model;
     TGAImage diffuse;
     TGAImage normal;
     TGAImage specular;
-    bool useAlphaTest;
-    bool isDeletable = true;
-    AABB bbox;
+    AABB localBBox;
 
-    Vec3f position = {0, 0, 0};
-    Vec3f rotation = {0, 0, 0}; // Euler angles in degrees
-    Vec3f scale = {1, 1, 1};
-
-    ModelInstance(const std::string& modelRoot,
+    ModelResource(const std::string& modelRoot,
                   const std::string &objPath,
                   const std::string &diffPath,
                   const std::string &nmPath,
-                  const std::string &specPath,
-                  const bool useAlphaTest)
-        : model(modelRoot + objPath), useAlphaTest(useAlphaTest), bbox() {
+                  const std::string &specPath)
+        : model(modelRoot + objPath) {
 
         diffuse.read_tga_file(modelRoot + diffPath);
         normal.read_tga_file(modelRoot + nmPath);
@@ -43,7 +36,29 @@ struct ModelInstance {
         diffuse.flip_vertically();
         normal.flip_vertically();
         specular.flip_vertically();
+
+        for (const auto& v : model.getVertices()) {
+            for (int i = 0; i < 3; ++i) {
+                localBBox.min[i] = std::min(localBBox.min[i], v[i]);
+                localBBox.max[i] = std::max(localBBox.max[i], v[i]);
+            }
+        }
     }
+};
+
+struct ModelInstance {
+    std::shared_ptr<ModelResource> resource;
+
+    bool useAlphaTest;
+    bool isDeletable = true;
+    bool useTextures = true;
+
+    Vec3f position = {0, 0, 0};
+    Vec3f rotation = {0, 0, 0}; // Euler angles in degrees
+    Vec3f scale = {1, 1, 1};
+
+    ModelInstance(std::shared_ptr<ModelResource> res, const bool useAlpha)
+        : resource(std::move(res)), useAlphaTest(useAlpha) {}
 
     [[nodiscard]] Matrix4f4 getModelMatrix() const {
         const Matrix4f4 T = Matrix4f4::translation(position);
@@ -57,38 +72,39 @@ struct ModelInstance {
         return T * (Rx * Ry * Rz) * S;
     }
 
-    void updateBBox() {
-        for (const auto& v: model.getVertices()) {
+    void updateBBox() const {
+        for (const auto& v: resource->model.getVertices()) {
             for (int i = 0 ; i < 3; ++i) {
-                bbox.min[i] = std::min(bbox.min[i], v[i]);
-                bbox.max[i] = std::max(bbox.max[i], v[i]);
+                resource->localBBox.min[i] = std::min(resource->localBBox.min[i], v[i]);
+                resource->localBBox.max[i] = std::max(resource->localBBox.max[i], v[i]);
             }
         }
     }
 
     [[nodiscard]] AABB getWorldAABB() const {
         const Matrix4f4 modelMat = getModelMatrix();
+        const auto& localBBox = resource->localBBox;
 
         Vec3f localCorners[8] = {
-            {bbox.min.x(), bbox.min.y(), bbox.min.z()}, {bbox.min.x(), bbox.min.y(), bbox.max.z()},
-            {bbox.min.x(), bbox.max.y(), bbox.min.z()}, {bbox.min.x(), bbox.max.y(), bbox.max.z()},
-            {bbox.max.x(), bbox.min.y(), bbox.min.z()}, {bbox.max.x(), bbox.min.y(), bbox.max.z()},
-            {bbox.max.x(), bbox.max.y(), bbox.min.z()}, {bbox.max.x(), bbox.max.y(), bbox.max.z()}
+            {localBBox.min.x(), localBBox.min.y(), localBBox.min.z()},
+            {localBBox.min.x(), localBBox.min.y(), localBBox.max.z()},
+            {localBBox.min.x(), localBBox.max.y(), localBBox.min.z()},
+            {localBBox.min.x(), localBBox.max.y(), localBBox.max.z()},
+            {localBBox.max.x(), localBBox.min.y(), localBBox.min.z()},
+            {localBBox.max.x(), localBBox.min.y(), localBBox.max.z()},
+            {localBBox.max.x(), localBBox.max.y(), localBBox.min.z()},
+            {localBBox.max.x(), localBBox.max.y(), localBBox.max.z()}
         };
 
         auto worldAABB = AABB();
-
         for (auto corner : localCorners) {
-            auto homogeneousCorner = Vec4f(corner);
-            Vec4f transformed = modelMat * homogeneousCorner;
-
-            auto worldCorner = Vec3f(transformed);
+            Vec4f transformed = modelMat * Vec4f(corner);
+            Vec3f worldCorner = Vec3f(transformed);
             for (int j = 0; j < 3; ++j) {
                 worldAABB.min[j] = std::min(worldAABB.min[j], worldCorner[j]);
                 worldAABB.max[j] = std::max(worldAABB.max[j], worldCorner[j]);
             }
         }
-
         return worldAABB;
     }
 

@@ -39,7 +39,7 @@ void Renderer::runShadowPass(const Scene& scene,
 
         DepthShader depthShader(depthUniforms);
 
-        const RenderContext ctx = { object.model, target.shadowMap,
+        const RenderContext ctx = { object.resource->model, target.shadowMap,
                           nullptr, nullptr,
                               target.shadowW, target.shadowH };
         drawModel(ctx, depthShader);
@@ -72,9 +72,9 @@ void Renderer::runColorPass(const Scene& scene,
         uniforms.normalMatrix = uniforms.model.inverseTranspose3x3();
         uniforms.cameraPos = scene.camera.pos;
 
-        PhongShader shader(object.diffuse, object.normal, object.specular, uniforms, object.useAlphaTest);
+        PhongShader shader(object.resource->diffuse, object.resource->normal, object.resource->specular, uniforms, object.useAlphaTest);
 
-        RenderContext ctx = { object.model, target.zbuffer,
+        RenderContext ctx = { object.resource->model, target.zbuffer,
                               &target.colorBuffer, &target.normalBuffer,
                               target.width, target.height };
         drawModel(ctx, shader);

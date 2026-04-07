@@ -14,6 +14,7 @@ include_directories(
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Math
         ${CMAKE_CURRENT_SOURCE_DIR}/src/Shaders
         ${CMAKE_CURRENT_SOURCE_DIR}/tests
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/imgui
 )
 
 add_executable(Renderer
@@ -40,7 +41,20 @@ add_executable(Renderer
         src/Core/Application.h
         src/Shaders/ScreenShader.h
         src/Core/Application.cpp
+
+        # ImGui Core
+        external/imgui/imgui.cpp
+        external/imgui/imgui_draw.cpp
+        external/imgui/imgui_widgets.cpp
+        external/imgui/imgui_tables.cpp
+        external/imgui/imgui_demo.cpp
+
+        # ImGui Backends
+        external/imgui/imgui_impl_glfw.cpp
+        external/imgui/imgui_impl_opengl3.cpp
 )
+
+target_include_directories(Renderer PRIVATE external/glad/include external/imgui)
 
 target_include_directories(Renderer PRIVATE external/glad/include)
 
