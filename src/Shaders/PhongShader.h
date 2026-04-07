@@ -13,6 +13,7 @@ public:
                 bool useDiffuse,
                 bool useNormalMap,
                 bool useSpecularMap,
+                bool fillColor,
                 bool useWireframe);
 
 
@@ -45,6 +46,7 @@ private:
     const bool useDiffuse;
     const bool useNormalMap;
     const bool useSpecularMap;
+    const bool fillColor;
     const bool useWireframe;
 
     float calculateShadowFactor(const Vec3f& worldPos) const;

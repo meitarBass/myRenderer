@@ -8,10 +8,11 @@ PhongShader::PhongShader(const TGAImage &diffuseMap,
                          const bool useDiffuse,
                          const bool useNormalMap,
                          const bool useSpecularMap,
+                         const bool fillColor,
                          const bool useWireframe)
     : diffuseMap(diffuseMap), normalMap(normalMap), specularMap(specularMap),
       useAlphaTest(useAlphaTest), useDiffuse(useDiffuse), useNormalMap(useNormalMap),
-      useSpecularMap(useSpecularMap), useWireframe(useWireframe)
+      useSpecularMap(useSpecularMap), fillColor(fillColor), useWireframe(useWireframe)
 {
     this->uniforms = uniforms;
 }
@@ -56,9 +57,9 @@ bool PhongShader::fragment(Varyings &varyings, TGAColor &color)
             color = {0, 255, 0, 255};
             return false;
         }
-
-        // return true;
     }
+
+    if (fillColor == false) return true;
 
     const float w = 1.0f / varyings.invW;
     const Vec2f uv = varyings.uv * w;
