@@ -16,7 +16,8 @@ struct Scene {
     Scene(const Camera& cam, const Vec3f& lightDir, const Vec3f& lightPos)
         : camera(cam), lightDir(lightDir), lightPos(lightPos) {}
 
-    void addModel(const ModelInstance& model) {
+    void addModel(ModelInstance& model) {
+        model.updateBBox();
         models.push_back(model);
     }
 };

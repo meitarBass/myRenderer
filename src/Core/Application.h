@@ -14,9 +14,8 @@
 struct Application {
     Application(const int w, const int h, const char* name)
         : width(w), height(h), appName(name),
-          cam ({0, 0, 6}, {0, 0, 0}, {0, 1, 0}, 3.0f),
           rb (RenderBuffers{width, height, width, height}),
-          scene({cam}, ((Vec3f(2, 3, 3).normalize() * 5.0f) - cam.lookAt).normalize(), Vec3f(2, 3, 3).normalize() * 5.0f)
+          scene({{0, 0, 6}, {0, 0, 0}, {0, 1, 0}, 3.0f}, (Vec3f(2, 3, 3).normalize() * 5.0f).normalize(), Vec3f(2, 3, 3).normalize() * 5.0f)
     {}
 
     bool init();
@@ -28,7 +27,6 @@ private:
     int width, height;
     const char *appName;
 
-    Camera cam;
     RenderBuffers rb;
     Scene scene;
     unsigned int shaderProgram, VAO, texture;
