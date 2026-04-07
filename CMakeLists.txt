@@ -70,3 +70,7 @@ find_package(OpenGL REQUIRED)
 
 target_link_libraries(Renderer PRIVATE glfw "-framework OpenGL" "-framework Cocoa" "-framework IOKit" "-framework CoreVideo")
 
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/Models"
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>/Models")

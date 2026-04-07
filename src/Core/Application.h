@@ -10,6 +10,7 @@
 #include <GLFW/glfw3.h>
 #include <cmath>
 #include <utility>
+#include <map>
 
 struct Application {
     Application(const int w, const int h, const char* name)
@@ -27,15 +28,19 @@ private:
     int width, height;
     const char *appName;
 
+    std::map<std::string, std::shared_ptr<ModelResource>> resourceCache;
     RenderBuffers rb;
     Scene scene;
+
     unsigned int shaderProgram, VAO, texture;
 
     double lastX = 400.0f;
     double lastY = 400.0f;
     double yaw = -90.0f;
     double pitch = 0.0f;
+
     bool firstMouse = true;
+
 
     bool initWindow();
     void setupShaders();
@@ -46,6 +51,11 @@ private:
     static void mouse_callback(GLFWwindow *window, double xPos, double yPos);
     static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
     Vec3f screenToWorldRay(double mouseX, double mouseY);
+    void addModelToScene(const std::string& folderPath,
+                         const std::string& objFile,
+                         const std::string& diffFile,
+                         const std::string& nmFile,
+                         const std::string& specFile);
 };
 
 #endif //RENDERER_APPLICATION_H
