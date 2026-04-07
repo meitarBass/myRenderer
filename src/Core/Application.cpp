@@ -160,6 +160,7 @@ void Application::buildScene() {
                                     "floor_spec.tga", false);
     floorModel.scale = {2.0, 1.0, 2.0};
     floorModel.position = {0.0, 0.0, -2.0};
+    floorModel.isDeletable = false;
 
     scene.addModel(floorModel);
 
@@ -280,6 +281,27 @@ void Application::mouse_button_callback(GLFWwindow* window, int button, int acti
         glfwGetCursorPos(window, &xPos, &yPos);
         Vec3f ray = app->screenToWorldRay(xPos, yPos);
 
+        float minT = std::numeric_limits<float>::max();
+        int closestModelIndex = -1;
+        for (int i = 0 ; i < app->scene.models.size(); ++i) {
+            const auto& model = app->scene.models[i];
+            const auto bbox = model.getWorldAABB();
+
+            if (model.isDeletable == false) continue;
+            const float t = ModelInstance::RayBoxInterSection(app->scene.camera.pos, ray, bbox.min, bbox.max);
+
+            if (t >= 0 && t < minT) {
+                minT = t;
+                closestModelIndex = i;
+            }
+        }
+
+        if (closestModelIndex != -1) {
+            std::cout << "Removing model at index: " << closestModelIndex << std::endl;
+            app->scene.models.erase(app->scene.models.begin() + closestModelIndex);
+        }
+
+        std::cout << closestModelIndex << std::endl;
         std::cout << ray.x() << " " << ray.y() << " " << ray.z() << std::endl;
     }
 }
@@ -290,7 +312,7 @@ Vec3f Application::screenToWorldRay(const double mouseX, const double mouseY) {
     const auto yNdc = 1 - (2 * mouseY) / height;
 
     // Step 2 - Clip Space
-    Vec4f rayClip = {xNdc, yNdc, -1.0f, 1.0f};
+    const Vec4f rayClip = {xNdc, yNdc, -1.0f, 1.0f};
 
     // Step 3 - Eye Space
     const float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
@@ -299,8 +321,8 @@ Vec3f Application::screenToWorldRay(const double mouseX, const double mouseY) {
     rayEye = {rayEye.x(), rayEye.y(), -1.0f, 0.0f};
 
     // Step 4 - World Space
-    Vec4f rayWorld = Matrix4f4::lookat(cam.pos, cam.lookAt, cam.up).inverse4x4() * rayEye;
+    Vec4f rayWorld = Matrix4f4::lookat(scene.camera.pos, scene.camera.lookAt, scene.camera.up).inverse4x4() * rayEye;
 
-    const Vec3f retVec = {rayClip.x(), rayClip.y(), rayClip.z()};
+    const Vec3f retVec = {rayWorld.x(), rayWorld.y(), rayWorld.z()};
     return retVec.normalize();
 }

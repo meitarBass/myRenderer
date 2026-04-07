@@ -30,6 +30,10 @@ public:
             : raw { other[0], other[1], other[2], static_cast<T>(1)}
     {}
 
+    explicit Vec(const Vec<T, 4>& other) requires (n == 3)
+            : raw { other[0], other[1], other[2] }
+    {}
+
     ~Vec() = default;
     Vec(const Vec& other) = default;
     Vec(Vec&& other) noexcept = default;
