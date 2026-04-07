@@ -51,7 +51,9 @@ struct ModelInstance {
 
     bool useAlphaTest;
     bool isDeletable = true;
-    bool useTextures = true;
+    bool useDiffuse = true;
+    bool useSpecularMap = true;
+    bool useNormalMap = true;
     bool useWireframe = false;
 
     Vec3f position = {0, 0, 0};
