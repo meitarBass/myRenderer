@@ -191,8 +191,13 @@ void Application::run() {
         ImGui::ColorEdit3("Light Color", &scene.lightColor[0]);
 
         if (ImGui::Button("Reset Camera")) {
-            scene.camera.pos = {0, 3, 10};
+            scene.getActiveCamera().reset();
         }
+
+        ImGui::Separator();
+        ImGui::Text("Post-Processing & Shadows:");
+        ImGui::Checkbox("Enable Shadows", &scene.useShadows);
+        ImGui::Checkbox("Enable SSAO", &scene.useSSAO);
 
         ImGui::Separator();
         ImGui::Text("Models in Scene:");
@@ -207,10 +212,15 @@ void Application::run() {
                 ImGui::Checkbox("Use Diffuse", &model.useDiffuse);
                 ImGui::Checkbox("Use Normal Map", &model.useNormalMap);
                 ImGui::Checkbox("Use Specular Map", &model.useSpecularMap);
-                ImGui::Checkbox("Use wireframe", &model.useWireframe);
+                ImGui::Checkbox("Use Wireframe", &model.useWireframe);
+                ImGui::Checkbox("Fill Color", &model.fillColor);
                 ImGui::SliderFloat3("Position", &model.position[0], -5.0f, 5.0f);
                 ImGui::SliderFloat3("Rotation", &model.rotation[0], 0.0f, 360.0f);
-                ImGui::SliderFloat("Scale", &model.scale[0], 0.1f, 3.0f);
+
+                float uniformScale = model.scale.x();
+                if (ImGui::SliderFloat("Scale", &uniformScale, 0.1f, 3.0f)) {
+                    model.scale = {uniformScale, uniformScale, uniformScale};
+                }
 
                 if (model.isDeletable && ImGui::Button("Remove")) {
                     scene.models.erase(scene.models.begin() + i);
@@ -219,13 +229,6 @@ void Application::run() {
                 ImGui::PopID();
             }
         }
-        ImGui::End();
-
-        // FPS
-        ImGui::SetNextWindowPos(ImVec2(10, 10));
-        ImGui::Begin("Stats", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
-        ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
-
         ImGui::End();
 
         // Model Loader
@@ -237,9 +240,7 @@ void Application::run() {
                 if (entry.is_directory()) {
                     std::string folderName = entry.path().filename().string();
 
-                    // כפתור לכל תיקייה שנמצאה
                     if (ImGui::Button(("Add " + folderName).c_str())) {
-                        // אנחנו מניחים שהקבצים נקראים כמו התיקייה (למשל diablo3_pose.obj)
                         addModelToScene(modelsPath + folderName + "/",
                                         folderName + ".obj",
                                         folderName + "_diffuse.tga",
@@ -253,33 +254,79 @@ void Application::run() {
         }
         ImGui::End();
 
-        Vec3f front;
-        front.x() = cos(yaw * M_PI / 180.0f) * cos(pitch * M_PI / 180.0f);
-        front.y() = sin(pitch * M_PI / 180.0f);
-        front.z() = sin(yaw * M_PI / 180.0f) * cos(pitch * M_PI / 180.0f);
+        // Cameras
 
+        ImGui::Begin("Camera Manager");
+
+        if (ImGui::Button("Add New Camera (Current View)")) {
+            Camera newCam = scene.getActiveCamera();
+            scene.cameras.push_back(newCam);
+            scene.activeCameraIndex = static_cast<int>(scene.cameras.size()) - 1;
+        }
+
+        ImGui::Separator();
+        ImGui::Text("Cameras List:");
+
+        for (int i = 0; i < scene.cameras.size(); i++) {
+            ImGui::PushID(i);
+
+            if (scene.cameras.size() > 1) {
+                if (ImGui::Button("Delete")) {
+                    if (i == scene.activeCameraIndex && scene.activeCameraIndex > 0) {
+                        scene.activeCameraIndex--;
+                    } else if (i < scene.activeCameraIndex) {
+                        scene.activeCameraIndex--;
+                    }
+                    scene.cameras.erase(scene.cameras.begin() + i);
+                    i--;
+                    ImGui::PopID();
+                    continue;
+                }
+                ImGui::SameLine();
+            }
+
+            std::string label = "Camera " + std::to_string(i);
+            if (ImGui::Selectable(label.c_str(), scene.activeCameraIndex == i)) {
+                scene.activeCameraIndex = i;
+            }
+
+            ImGui::PopID();
+        }
+
+        Camera &currCam = scene.getActiveCamera();
+        ImGui::Separator();
+        ImGui::Text("Active Camera Settings:");
+        ImGui::DragFloat3("Position", &currCam.pos[0], 0.1f);
+        ImGui::DragFloat("Focal Length", &currCam.focalLength, 0.01f, 0.1f, 10.0f);
+
+        ImGui::End();
+
+        Vec3f front;
+        front.x() = cos(currCam.yaw * M_PI / 180.0f) * cos(currCam.pitch * M_PI / 180.0f);
+        front.y() = sin(currCam.pitch * M_PI / 180.0f);
+        front.z() = sin(currCam.yaw * M_PI / 180.0f) * cos(currCam.pitch * M_PI / 180.0f);
         Vec3f forward = front.normalize();
 
-
+        Camera &cam = scene.getActiveCamera();
         float speed = 2.5f * deltaTime;
-        Vec3f right = cross(forward, scene.camera.up).normalize();
+        Vec3f right = cross(forward, cam.up).normalize();
 
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            scene.camera.pos = scene.camera.pos + (forward * speed);
+            cam.pos = cam.pos + (forward * speed);
         }
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-            scene.camera.pos = scene.camera.pos - (forward * speed);
+            cam.pos = cam.pos - (forward * speed);
         }
 
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-            scene.camera.pos = scene.camera.pos + (right * speed);
+            cam.pos = cam.pos + (right * speed);
         }
 
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            scene.camera.pos = scene.camera.pos - (right * speed);
+            cam.pos = cam.pos - (right * speed);
         }
 
-        scene.camera.lookAt = scene.camera.pos + forward;
+        cam.lookAt = cam.pos + forward;
         Renderer::render(scene, rb);
 
         int fbWidth, fbHeight;
@@ -331,11 +378,12 @@ void Application::processMouseInput(const double xPos, const double yPos) {
     xOffset *= 0.1f;
     yOffset *= 0.1f;
 
-    yaw += xOffset;
-    pitch += yOffset;
+    Camera &activeCam = scene.getActiveCamera();
+    activeCam.yaw += xOffset;
+    activeCam.pitch += yOffset;
 
-    if (pitch > 89.0f) pitch = 89.0f;
-    if (pitch < -89.0f) pitch = -89.0f;
+    if (activeCam.pitch > 89.0f) activeCam.pitch = 89.0f;
+    if (activeCam.pitch < -89.0f) activeCam.pitch = -89.0f;
 }
 
 void Application::mouse_callback(GLFWwindow *window, const double xPos, const double yPos) {
@@ -366,7 +414,7 @@ void Application::mouse_button_callback(GLFWwindow* window, int button, int acti
             const auto bbox = model.getWorldAABB();
 
             if (model.isDeletable == false) continue;
-            const float t = ModelInstance::RayBoxInterSection(app->scene.camera.pos, ray, bbox.min, bbox.max);
+            const float t = ModelInstance::RayBoxInterSection(app->scene.getActiveCamera().pos, ray, bbox.min, bbox.max);
 
             if (t >= 0 && t < minT) {
                 minT = t;
@@ -399,7 +447,8 @@ Vec3f Application::screenToWorldRay(const double mouseX, const double mouseY) {
     rayEye = {rayEye.x(), rayEye.y(), -1.0f, 0.0f};
 
     // Step 4 - World Space
-    Vec4f rayWorld = Matrix4f4::lookat(scene.camera.pos, scene.camera.lookAt, scene.camera.up).inverse4x4() * rayEye;
+    const Camera& cam = scene.getActiveCamera();
+    Vec4f rayWorld = Matrix4f4::lookat(cam.pos, cam.lookAt, cam.up).inverse4x4() * rayEye;
 
     const Vec3f retVec = {rayWorld.x(), rayWorld.y(), rayWorld.z()};
     return retVec.normalize();

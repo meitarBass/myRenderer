@@ -13,13 +13,17 @@ void Renderer::render(const Scene& scene, RenderBuffers& target)
 
     target.reset();
     // --- STEP 1: Shadow Pass ---
-    runShadowPass(scene, target, lightProjView);
+    if (scene.useShadows) {
+        runShadowPass(scene, target, lightProjView);
+    }
 
     // --- STEP 2: Fill Z-Buffer (Crucial for SSAO) ---
     runColorPass(scene, target, lightProjView);
 
     // --- STEP 3: Apply SSAO ---
-    applySSAO(target);
+    if (scene.useSSAO) {
+        applySSAO(target);
+    }
 }
 
 void Renderer::runShadowPass(const Scene& scene,
@@ -51,8 +55,9 @@ void Renderer::runColorPass(const Scene& scene,
                   const Matrix4f4& lightProjView)
 {
 
-    const Matrix4f4 view = Matrix4f4::lookat(scene.camera.pos, scene.camera.lookAt, scene.camera.up);
-    const Matrix4f4 projection = Matrix4f4::projection(scene.camera.focalLength);
+    const Camera &cam = scene.getActiveCamera();
+    const Matrix4f4 view = Matrix4f4::lookat(cam.pos, cam.lookAt, cam.up);
+    const Matrix4f4 projection = Matrix4f4::projection(cam.focalLength);
     const Matrix4f4 viewport = Matrix4f4::viewport(0, 0, target.width, target.height);
 
     for (const auto& object : scene.models) {
@@ -66,15 +71,16 @@ void Renderer::runColorPass(const Scene& scene,
         uniforms.lightDir = scene.lightDir;
         uniforms.lightColor = scene.lightColor;
         uniforms.lightProjView = lightProjView;
-        uniforms.shadowMap = &target.shadowMap;
+        uniforms.shadowMap = scene.useShadows ? &target.shadowMap : nullptr;
         uniforms.shadowWidth = target.shadowW;
         uniforms.shadowHeight = target.shadowH;
 
         uniforms.normalMatrix = uniforms.model.inverseTranspose3x3();
-        uniforms.cameraPos = scene.camera.pos;
+        uniforms.cameraPos = cam.pos;
 
         PhongShader shader(object.resource->diffuse, object.resource->normal, object.resource->specular, uniforms,
-                           object.useAlphaTest, object.useDiffuse, object.useNormalMap, object.useSpecularMap, object.useWireframe);
+                           object.useAlphaTest, object.useDiffuse, object.useNormalMap, object.useSpecularMap,
+                           object.fillColor, object.useWireframe);
 
         RenderContext ctx = { object.resource->model, target.zbuffer,
                               &target.colorBuffer, &target.normalBuffer,

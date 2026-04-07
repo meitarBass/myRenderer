@@ -33,8 +33,11 @@ This renderer is a deep dive into the **Graphics Pipeline**, **Linear Algebra**,
 | :---: | :---: | :---: | :---: |
 | ![Normal Mapping](screenshots/normal-map.png) | ![Shadows](screenshots/shadow-map.png) | ![SSAO Pass](screenshots/ssao-effect.png) | ![Final Scene](screenshots/final-scene.png) |
 | *Fine surface details via Tangent-space normals* | *Soft shadows using 3x3 PCF kernel* | *Ambient occlusion pass on depth buffer* | *All effects combined: Lighting, Shadows & SSAO* |
-
 ---
+
+<p align="center">
+  <img src="screenshots/demo.gif" width="60%" />
+</p>
 
 ### 🛠️ How to Build
 ```bash

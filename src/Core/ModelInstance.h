@@ -55,6 +55,7 @@ struct ModelInstance {
     bool useSpecularMap = true;
     bool useNormalMap = true;
     bool useWireframe = false;
+    bool fillColor = true;
 
     Vec3f position = {0, 0, 0};
     Vec3f rotation = {0, 0, 0}; // Euler angles in degrees
