@@ -4,8 +4,11 @@ PhongShader::PhongShader(const TGAImage &diffuseMap,
                          const TGAImage &normalMap,
                          const TGAImage &specularMap,
                          const Uniforms &uniforms,
-                         const bool useAlphaTest)
-    : diffuseMap(diffuseMap), normalMap(normalMap), specularMap(specularMap), useAlphaTest(useAlphaTest)
+                         const bool useAlphaTest,
+                         const bool useTextures,
+                         const bool useWireframe)
+    : diffuseMap(diffuseMap), normalMap(normalMap), specularMap(specularMap),
+      useAlphaTest(useAlphaTest), useTextures(useTextures), useWireframe(useWireframe)
 {
     this->uniforms = uniforms;
 }
@@ -40,6 +43,20 @@ Varyings PhongShader::vertex(const Vec3f &localPos,
 
 bool PhongShader::fragment(Varyings &varyings, TGAColor &color)
 {
+    if (useWireframe) {
+        constexpr float thickness = 0.05f;
+
+        if (varyings.barycentric.x() < thickness ||
+            varyings.barycentric.y() < thickness ||
+            varyings.barycentric.z() < thickness)
+        {
+            color = {0, 255, 0, 255};
+            return false;
+        }
+
+        // return true;
+    }
+
     const float w = 1.0f / varyings.invW;
     const Vec2f uv = varyings.uv * w;
     const Vec3f worldPos = varyings.worldPos * w;
@@ -55,17 +72,21 @@ bool PhongShader::fragment(Varyings &varyings, TGAColor &color)
     float diffuseIntensity, specIntensity;
     calculateLighting(finalNormal, worldPos, uv, shadowFactor, diffuseIntensity, specIntensity);
 
-    TGAColor texColor = diffuseMap.get(
-        static_cast<int>(uv.x() * diffuseMap.width()),
-        static_cast<int>(uv.y() * diffuseMap.height())
-    );
+    TGAColor texColor;
+    if (useTextures) {
+        texColor = diffuseMap.get(
+            static_cast<int>(uv.x() * diffuseMap.width()),
+            static_cast<int>(uv.y() * diffuseMap.height())
+        );
+    } else {
+        texColor = {255, 255, 255, 255};
+    }
 
     const float totalIntensity = ambient + diffuseIntensity + specIntensity;
 
-    for (int i = 0; i < 3; i++) {
-        color[i] = static_cast<unsigned char>(std::min(GraphicsUtils::MAX_COLOR_F,
-                                                      texColor[i] * totalIntensity));
-    }
+    color[2] = static_cast<unsigned char>(std::min(255.0f, texColor[2] * totalIntensity * uniforms.lightColor[0]));
+    color[1] = static_cast<unsigned char>(std::min(255.0f, texColor[1] * totalIntensity * uniforms.lightColor[1]));
+    color[0] = static_cast<unsigned char>(std::min(255.0f, texColor[0] * totalIntensity * uniforms.lightColor[2]));
 
     return useAlphaTest ? texColor[3] < alphaTestLimit : false;
 }

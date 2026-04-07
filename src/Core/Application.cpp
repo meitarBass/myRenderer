@@ -25,6 +25,7 @@ bool Application::initWindow() {
     }
 
     glfwMakeContextCurrent(window);
+    glfwSwapInterval(1);
 
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
         std::cerr << "Failed to initialize GLAD\n";
@@ -36,7 +37,8 @@ bool Application::initWindow() {
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     ImGui::StyleColorsDark();
 
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplGlfw_InitForOpenGL(window, false);
+    ImGui_ImplGlfw_InstallCallbacks(window);
     ImGui_ImplOpenGL3_Init("#version 410");
 
     return true;
@@ -164,7 +166,7 @@ void Application::buildScene() {
         "african_head_eye_inner_nm_tangent.tga", "african_head_eye_inner_spec.tga");
 
     ModelInstance head(headRes, false);
-    ModelInstance eyesIn(headRes, false);
+    ModelInstance eyesIn(eyesInRes, false);
     head.rotation = {-20, 10, 0};
     eyesIn.rotation = {-20, 10, 0};
 
@@ -210,6 +212,8 @@ void Application::run() {
     float lastFrame = 0.0f;
 
     while (!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
+
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
@@ -218,12 +222,21 @@ void Application::run() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        ImGui::SetNextWindowSize(ImVec2(350, 500), ImGuiCond_FirstUseEver);
         ImGui::Begin("Scene Inspector");
         ImGuiIO& io = ImGui::GetIO();
         ImGui::Text("Performance: %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 
+        // Lighting
+        ImGui::Separator();
+        ImGui::Text("Global Light Settings:");
+        if (ImGui::SliderFloat3("Light Direction", &scene.lightDir[0], -1.0f, 1.0f)) {
+            scene.lightPos = scene.lightDir * 5.0f;
+        }
+        ImGui::ColorEdit3("Light Color", &scene.lightColor[0]);
+
         if (ImGui::Button("Reset Camera")) {
-            scene.camera.pos = {0, 0, 6};
+            scene.camera.pos = {0, 3, 10};
         }
 
         ImGui::Separator();
@@ -236,6 +249,8 @@ void Application::run() {
             if (ImGui::CollapsingHeader(label.c_str())) {
                 ImGui::PushID(i);
 
+                ImGui::Checkbox("Use Texture", &model.useTextures);
+                ImGui::Checkbox("Use wireframe", &model.useWireframe);
                 ImGui::SliderFloat3("Position", &model.position[0], -5.0f, 5.0f);
                 ImGui::SliderFloat3("Rotation", &model.rotation[0], 0.0f, 360.0f);
                 ImGui::SliderFloat("Scale", &model.scale[0], 0.1f, 3.0f);
@@ -287,7 +302,7 @@ void Application::run() {
         int fbWidth, fbHeight;
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
         glViewport(0, 0, fbWidth, fbHeight);
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        // glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glActiveTexture(GL_TEXTURE0);
@@ -302,7 +317,6 @@ void Application::run() {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
-        glfwPollEvents();
     }
 
     ImGui_ImplOpenGL3_Shutdown();
@@ -342,6 +356,9 @@ void Application::processMouseInput(const double xPos, const double yPos) {
 }
 
 void Application::mouse_callback(GLFWwindow *window, const double xPos, const double yPos) {
+    ImGui_ImplGlfw_CursorPosCallback(window, xPos, yPos);
+    if (ImGui::GetIO().WantCaptureMouse) return;
+
     auto *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
     if (app) {
         app->processMouseInput(xPos, yPos);
@@ -350,6 +367,9 @@ void Application::mouse_callback(GLFWwindow *window, const double xPos, const do
 
 
 void Application::mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+    ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+    if (ImGui::GetIO().WantCaptureMouse) return;
+
     double xPos, yPos;
     auto *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
     if (app && button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {

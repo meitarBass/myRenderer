@@ -52,6 +52,7 @@ struct ModelInstance {
     bool useAlphaTest;
     bool isDeletable = true;
     bool useTextures = true;
+    bool useWireframe = false;
 
     Vec3f position = {0, 0, 0};
     Vec3f rotation = {0, 0, 0}; // Euler angles in degrees

@@ -18,6 +18,7 @@ struct Varyings {
     Vec3f bitangent;
     float invW{1.0f};            // used in '' formula.
     Vec3f normalForBuffer;      // used for out normal.
+    Vec3f barycentric;
 };
 
 
@@ -32,6 +33,7 @@ struct Uniforms {
     Matrix4f4 viewport;
     Matrix3f3 normalMatrix;             // TBN matrix.
     Vec3f lightDir;
+    Vec3f lightColor;
     Vec3f cameraPos;
 
     Matrix4f4 lightSpaceMatrix;

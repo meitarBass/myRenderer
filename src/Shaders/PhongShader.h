@@ -9,7 +9,9 @@ public:
                 const TGAImage &normalMap,
                 const TGAImage &specularMap,
                 const Uniforms &uniforms,
-                bool useAlphaTest);
+                bool useAlphaTest,
+                bool useTextures,
+                bool useWireframe);
 
 
     /**
@@ -38,6 +40,8 @@ private:
     const TGAImage &normalMap;
     const TGAImage &specularMap;
     const bool useAlphaTest;
+    const bool useTextures;
+    const bool useWireframe;
 
     float calculateShadowFactor(const Vec3f& worldPos) const;
 
