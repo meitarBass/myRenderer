@@ -3,30 +3,39 @@
 ThreadPool::ThreadPool(const size_t threads) {
     for (size_t i = 0; i < threads; i++) {
         workers.emplace_back([this] {
-            while (true) {
-                std::function<void()> task;
-                {
-                    std::unique_lock<std::mutex> lock(this->queueMutex);
-                    this->condition.wait(lock, [this] {
-                        return this->stop || !this->tasks.empty();
-                    });
+    while (true) {
+        std::function<void()> task;
+        {
+            std::unique_lock<std::mutex> lock(this->queueMutex);
+            this->condition.wait(lock, [this] {
+                return this->stop || !this->tasks.empty();
+            });
 
-                    if (this->stop && this->tasks.empty()) {
-                        return;
-                    }
-
-                    task = std::move(this->tasks.front());
-                    this->tasks.pop();
-                }
-
-                task();
-                activeTasks.fetch_sub(1, std::memory_order_relaxed);
-
-                if (activeTasks == 0 && tasks.empty()) {
-                    finishedCondition.notify_one();
-                }
+            if (this->stop && this->tasks.empty()) {
+                return;
             }
-        });
+
+            task = std::move(this->tasks.front());
+            this->tasks.pop();
+        }
+
+        task();
+
+        bool notify = false;
+        {
+            std::unique_lock<std::mutex> lock(this->queueMutex);
+            this->activeTasks--;
+
+            if (this->activeTasks == 0) {
+                notify = true;
+            }
+        }
+
+        if (notify) {
+            this->finishedCondition.notify_all();
+        }
+    }
+});
     }
 }
 

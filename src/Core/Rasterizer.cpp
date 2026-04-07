@@ -138,7 +138,6 @@ inline std::vector<ProcessedTriangle> preProcessVertices(const ModelLoader& mode
             processed.push_back(pt);
         }
     }
-    // std::cout << "Original faces: " << faces.size() << " | Rendered faces: " << processed.size() << std::endl;
     return processed;
 }
 
