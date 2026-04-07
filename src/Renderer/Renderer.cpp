@@ -64,6 +64,7 @@ void Renderer::runColorPass(const Scene& scene,
         uniforms.viewport = viewport;
 
         uniforms.lightDir = scene.lightDir;
+        uniforms.lightColor = scene.lightColor;
         uniforms.lightProjView = lightProjView;
         uniforms.shadowMap = &target.shadowMap;
         uniforms.shadowWidth = target.shadowW;
@@ -72,7 +73,8 @@ void Renderer::runColorPass(const Scene& scene,
         uniforms.normalMatrix = uniforms.model.inverseTranspose3x3();
         uniforms.cameraPos = scene.camera.pos;
 
-        PhongShader shader(object.resource->diffuse, object.resource->normal, object.resource->specular, uniforms, object.useAlphaTest);
+        PhongShader shader(object.resource->diffuse, object.resource->normal, object.resource->specular, uniforms,
+                           object.useAlphaTest, object.useTextures, object.useWireframe);
 
         RenderContext ctx = { object.resource->model, target.zbuffer,
                               &target.colorBuffer, &target.normalBuffer,
