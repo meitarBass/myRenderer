@@ -74,7 +74,7 @@ void Renderer::runColorPass(const Scene& scene,
         uniforms.cameraPos = scene.camera.pos;
 
         PhongShader shader(object.resource->diffuse, object.resource->normal, object.resource->specular, uniforms,
-                           object.useAlphaTest, object.useTextures, object.useWireframe);
+                           object.useAlphaTest, object.useDiffuse, object.useNormalMap, object.useSpecularMap, object.useWireframe);
 
         RenderContext ctx = { object.resource->model, target.zbuffer,
                               &target.colorBuffer, &target.normalBuffer,

@@ -249,7 +249,9 @@ void Application::run() {
             if (ImGui::CollapsingHeader(label.c_str())) {
                 ImGui::PushID(i);
 
-                ImGui::Checkbox("Use Texture", &model.useTextures);
+                ImGui::Checkbox("Use Diffuse", &model.useDiffuse);
+                ImGui::Checkbox("Use Normal Map", &model.useNormalMap);
+                ImGui::Checkbox("Use Specular Map", &model.useSpecularMap);
                 ImGui::Checkbox("Use wireframe", &model.useWireframe);
                 ImGui::SliderFloat3("Position", &model.position[0], -5.0f, 5.0f);
                 ImGui::SliderFloat3("Rotation", &model.rotation[0], 0.0f, 360.0f);

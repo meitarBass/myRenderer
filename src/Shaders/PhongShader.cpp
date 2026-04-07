@@ -5,10 +5,13 @@ PhongShader::PhongShader(const TGAImage &diffuseMap,
                          const TGAImage &specularMap,
                          const Uniforms &uniforms,
                          const bool useAlphaTest,
-                         const bool useTextures,
+                         const bool useDiffuse,
+                         const bool useNormalMap,
+                         const bool useSpecularMap,
                          const bool useWireframe)
     : diffuseMap(diffuseMap), normalMap(normalMap), specularMap(specularMap),
-      useAlphaTest(useAlphaTest), useTextures(useTextures), useWireframe(useWireframe)
+      useAlphaTest(useAlphaTest), useDiffuse(useDiffuse), useNormalMap(useNormalMap),
+      useSpecularMap(useSpecularMap), useWireframe(useWireframe)
 {
     this->uniforms = uniforms;
 }
@@ -60,20 +63,24 @@ bool PhongShader::fragment(Varyings &varyings, TGAColor &color)
     const float w = 1.0f / varyings.invW;
     const Vec2f uv = varyings.uv * w;
     const Vec3f worldPos = varyings.worldPos * w;
-    const Vec3f N = varyings.normal.normalize();
-    const Vec3f T = varyings.tangent.normalize();
-    const Vec3f B = varyings.bitangent.normalize();
 
+
+    Vec3f N;
+    if (useNormalMap) {
+        const Vec3f interpN = varyings.normal.normalize();
+        const Vec3f T = varyings.tangent.normalize();
+        const Vec3f B = varyings.bitangent.normalize();
+        N = calculateNormal(uv, T, B, interpN);
+    } else {
+        N = varyings.normal.normalize();
+    }
+    varyings.normalForBuffer = N;
     const float shadowFactor = calculateShadowFactor(worldPos);
-    const Vec3f finalNormal = calculateNormal(uv, T, B, N);
-
-    varyings.normalForBuffer = finalNormal;
-
     float diffuseIntensity, specIntensity;
-    calculateLighting(finalNormal, worldPos, uv, shadowFactor, diffuseIntensity, specIntensity);
+    calculateLighting(N, worldPos, uv, shadowFactor, diffuseIntensity, specIntensity);
 
     TGAColor texColor;
-    if (useTextures) {
+    if (useDiffuse) {
         texColor = diffuseMap.get(
             static_cast<int>(uv.x() * diffuseMap.width()),
             static_cast<int>(uv.y() * diffuseMap.height())
@@ -156,13 +163,18 @@ void PhongShader::calculateLighting(const Vec3f& normal,
     const float dotNL = dotProduct(normal, L);
     outDiffuse = std::max(0.0f, dotNL) * shadowFactor;
 
-    Vec3f R = (normal * (2.0f * dotNL)) - L;
-    R = R.normalize();
+    if (useSpecularMap) {
+        constexpr float lightFormulaPower = 10.0f;
+        const Vec3f V = (uniforms.cameraPos - worldPos).normalize();
+        Vec3f R = (normal * (2.0f * dotNL)) - L;
+        R = R.normalize();
 
-    TGAColor specData = specularMap.get(
-        static_cast<int>(uv.x() * specularMap.width()),
-        static_cast<int>(uv.y() * specularMap.height())
-    );
-    outSpec = std::pow(std::max(0.0f, dotProduct(R, V)),
-                       lightFormulaPower) * (specData[0] / GraphicsUtils::MAX_COLOR_F ) * shadowFactor;
+        TGAColor specData = specularMap.get(
+            static_cast<int>(uv.x() * specularMap.width()),
+            static_cast<int>(uv.y() * specularMap.height())
+        );
+        outSpec = std::pow(std::max(0.0f, dotProduct(R, V)), lightFormulaPower) * (specData[0] / GraphicsUtils::MAX_COLOR_F) * shadowFactor;
+    } else {
+        outSpec = 0.0f;
+    }
 }
