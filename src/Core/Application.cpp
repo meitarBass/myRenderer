@@ -138,12 +138,11 @@ void Application::buildScene() {
                                              "floor_nm_tangent.tga", "floor_spec.tga");
     ModelInstance floorModel(floorRes, false);
 
-    floorModel.scale = {2.0, 1.0, 2.0};
+    floorModel.scale = {5.0, 1.0, 5.0};
     floorModel.position = {0.0, 0.0, -2.0};
     floorModel.isDeletable = false;
 
     scene.addModel(floorModel);
-
 
     // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
@@ -369,8 +368,8 @@ void Application::processMouseInput(const double xPos, const double yPos) {
         firstMouse = false;
     }
 
-    float xOffset = xPos - lastX;
-    float yOffset = lastY - yPos;
+    auto xOffset = xPos - lastX;
+    auto yOffset = lastY - yPos;
 
     lastX = xPos;
     lastY = yPos;
@@ -382,6 +381,7 @@ void Application::processMouseInput(const double xPos, const double yPos) {
     activeCam.yaw += xOffset;
     activeCam.pitch += yOffset;
 
+    // Avoiding Gimbal lock
     if (activeCam.pitch > 89.0f) activeCam.pitch = 89.0f;
     if (activeCam.pitch < -89.0f) activeCam.pitch = -89.0f;
 }
@@ -390,8 +390,7 @@ void Application::mouse_callback(GLFWwindow *window, const double xPos, const do
     ImGui_ImplGlfw_CursorPosCallback(window, xPos, yPos);
     if (ImGui::GetIO().WantCaptureMouse) return;
 
-    auto *app = static_cast<Application *>(glfwGetWindowUserPointer(window));
-    if (app) {
+    if (auto *app = static_cast<Application *>(glfwGetWindowUserPointer(window))) {
         app->processMouseInput(xPos, yPos);
     }
 }
@@ -414,7 +413,8 @@ void Application::mouse_button_callback(GLFWwindow* window, int button, int acti
             const auto bbox = model.getWorldAABB();
 
             if (model.isDeletable == false) continue;
-            const float t = ModelInstance::RayBoxInterSection(app->scene.getActiveCamera().pos, ray, bbox.min, bbox.max);
+            const float t =
+                ModelInstance::RayBoxInterSection(app->scene.getActiveCamera().pos, ray, bbox.min, bbox.max);
 
             if (t >= 0 && t < minT) {
                 minT = t;
@@ -457,7 +457,7 @@ Vec3f Application::screenToWorldRay(const double mouseX, const double mouseY) {
 void Application::addModelToScene(const std::string& folderPath, const std::string& objFile,
                                   const std::string& diffFile, const std::string& nmFile,
                                   const std::string& specFile) {
-    std::string resourceKey = folderPath + objFile;
+    const std::string resourceKey = folderPath + objFile;
     if (resourceCache.find(resourceKey) == resourceCache.end()) {
         resourceCache[resourceKey] = std::make_shared<ModelResource>(
             folderPath, objFile, diffFile, nmFile, specFile

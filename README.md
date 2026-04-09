@@ -5,17 +5,25 @@
 ![Build](https://img.shields.io/badge/Build-CMake-orange.svg)
 
 This renderer is a deep dive into the **Graphics Pipeline**, **Linear Algebra**, and **Systems Programming**. Inspired by the *Tiny Renderer* curriculum, it moves beyond the basics by implementing a fully multi-threaded architecture, zero-copy memory management, and advanced shading techniques.
+* **Note that the updated version is Real-Time. The offline version is under the 'legacy/offline-tga' branch.**
 
 ---
 
-### 🚀 Performance & Systems Engineering
-* **Tile-Based Parallelism**: The screen is divided into 32x32 tiles. A custom lock-free **Thread Pool** dynamically assigns workers to tiles, maximizing CPU saturation.
-* **Atomic Task Scheduling**: Efficient load balancing via `fetch_add` on an `std::atomic` counter for tile processing, ensuring no CPU core stays idle without heavy Mutex contention.
+### 🚀 Systems Engineering
+* **Tile-Based Parallelism**: The screen is divided into 32x32 tiles. A custom **Thread Pool** dynamically assigns workers to tiles, maximizing CPU saturation.
+* **Thread-Safe Task Queue**: Implementation of a synchronized worker pool using std::condition_variable and std::mutex. Tasks are distributed dynamically to ensure no CPU core remains idle during complex frame calculations.
+* **Atomic Work Tracking**: Uses std::atomic for thread-safe tracking of active tasks and frame completion, facilitating non-blocking synchronization in the waitFinished routine.
 * **Zero-Copy Memory Management (RAII)**: Heavy buffers (Framebuffer, Z-Buffer, Normal/Shadow Maps) are encapsulated in a single RAII structure. Memory is allocated *once* at startup and simply cleared between passes, eliminating dynamic allocations inside the hot loop.
 * **Screen-Space Backface Culling**: Mathematically eliminates hidden geometry using 2D cross-product calculations before the expensive rasterization phase.
 
+### 🚀 Performance Benchmark
+* **Throughput**: Processes ~75,000 triangles per frame.
+* **Framerate**: Sustains 50 FPS at 800x800 resolution (~75k triangles/frame)
+* **Hardware**: Benchmarked on Apple M1.
+* **Architecture**: 100% CPU-bound pipeline. The GPU is utilized solely as a "dumb" display buffer via OpenGL textures, ensuring the entire rasterization logic is software-based.
+* **Note: The GPU acts only as a display buffer. All geometric calculations and pixel-level shading are computed in software on the CPU to ensure full control over the pipeline.**
 ### 🧮 The Math Engine
-* **Generic Template Library**: Built custom `Vec<T, n>` and `Matrix<T, M, N>` structures utilizing **C++20 Concepts** (`requires std::is_arithmetic_v<T>`) for rigorous compile-time type safety.
+Generic Template Library: Custom Vec<T, n> and Matrix<T, M, N> structures utilizing C++ Templates for compile-time arithmetic validation.
 * **Column-Major Matrices**: Aligned with standard graphics API conventions (OpenGL/DirectX).
 * **Perspective-Correct Shading**: Advanced barycentric interpolation accounting for the $1/w$ depth component.
 
