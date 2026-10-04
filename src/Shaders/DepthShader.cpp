@@ -21,6 +21,7 @@ Varyings DepthShader::vertex(const Vec3f& localPos,
     const Vec4f screen = uniforms.viewport * ndc;
 
     out.screenPos = Vec3f(screen.x(), screen.y(), screen.z());
+    out.opacityForBuffer = uniforms.casterOpacity;
 
     return out;
 }

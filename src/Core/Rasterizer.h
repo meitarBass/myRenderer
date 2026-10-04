@@ -6,6 +6,8 @@
 #include "../IO/ModelLoader.h"
 #include "IShader.h"
 
+struct Scene;
+
 /**
  * Contains the context of the scene as well as the model to
  * be rendered.
@@ -15,8 +17,14 @@ struct RenderContext {
     std::vector<float>& zbuffer;
     std::vector<unsigned char>* colorBuffer = nullptr;
     std::vector<Vec3f>* normalBuffer = nullptr;
+    std::vector<float>* distanceBuffer = nullptr;
     int width = 0;
     int height = 0;
+
+    const Scene* sceneRef = nullptr;
+
+    std::vector<float>* blendDepthBuffer = nullptr; // per-object scratch depth for blended draws
+    std::vector<float>* opacityBuffer = nullptr; // per-texel caster opacity, shadow pass only
 };
 
 
@@ -69,5 +77,12 @@ void drawModel(const RenderContext &ctx, IShader& shader);
  * @return                     Returns the new tangent and bitangent.
  */
 std::pair<Vec3f, Vec3f> calculateTriangleBasis(const Vec3f pts[3], const Vec2f uvs[3]);
+
+
+Vec3f calculateFaceNormal(const Vec3f& p0, const Vec3f &p1, const Vec3f& p2);
+void drawFaceNormals(const RenderContext& ctx, IShader& shader);
+void drawVertexNormals(const RenderContext& ctx, IShader& shader);
+void drawBoundingBox(const RenderContext& ctx, IShader& shader);
+void drawCameraIcons(const RenderContext& ctx, const Scene& scene, IShader& shader);
 
 #endif //RENDERER_RASTERIZER_H

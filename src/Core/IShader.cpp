@@ -35,5 +35,18 @@ Varyings IShader::interpolate(const Varyings& v1,
                     v2.bitangent * barycentric.y() +
                     v3.bitangent * barycentric.z();
 
+    res.vertexDiffuse = v1.vertexDiffuse * barycentric.x() +
+                        v2.vertexDiffuse * barycentric.y() +
+                        v3.vertexDiffuse * barycentric.z();
+
+    res.vertexSpecular = v1.vertexSpecular * barycentric.x() +
+                         v2.vertexSpecular * barycentric.y() +
+                         v3.vertexSpecular * barycentric.z();
+
+    // Same value at all 3 vertices; blended here just for consistency.
+    res.opacityForBuffer = v1.opacityForBuffer * barycentric.x() +
+                           v2.opacityForBuffer * barycentric.y() +
+                           v3.opacityForBuffer * barycentric.z();
+
     return res;
 }

@@ -1,18 +1,35 @@
 #include "PhongShader.h"
 
+namespace {
+    Vec3f directionToLight(const Light& light, const Vec3f& worldPos) {
+        return light.type == LightType::Directional
+            ? light.direction.normalize()
+            : (light.position - worldPos).normalize();
+    }
+}
+
 PhongShader::PhongShader(const TGAImage &diffuseMap,
                          const TGAImage &normalMap,
                          const TGAImage &specularMap,
                          const Uniforms &uniforms,
+                         const Material &material,
+                         const ShadingMode shadingMode,
                          const bool useAlphaTest,
+                         const bool useBlending,
                          const bool useDiffuse,
                          const bool useNormalMap,
                          const bool useSpecularMap,
+                         const bool useVertexNormalDrawing,
+                         const bool useFaceNormalDrawing,
+                         const bool useBBoxDrawing,
                          const bool fillColor,
                          const bool useWireframe)
-    : diffuseMap(diffuseMap), normalMap(normalMap), specularMap(specularMap),
-      useAlphaTest(useAlphaTest), useDiffuse(useDiffuse), useNormalMap(useNormalMap),
-      useSpecularMap(useSpecularMap), fillColor(fillColor), useWireframe(useWireframe)
+    : diffuseMap(diffuseMap), normalMap(normalMap), specularMap(specularMap), material(material),
+      shadingMode(shadingMode),
+      useAlphaTest(useAlphaTest), useBlending(useBlending), useDiffuse(useDiffuse), useNormalMap(useNormalMap),
+      useSpecularMap(useSpecularMap), fillColor(fillColor), useWireframe(useWireframe),
+      useVertexNormalDrawing(useVertexNormalDrawing), useFaceNormalDrawing(useFaceNormalDrawing),
+      useBBoxDrawing(useBBoxDrawing)
 {
     this->uniforms = uniforms;
 }
@@ -35,11 +52,25 @@ Varyings PhongShader::vertex(const Vec3f &localPos,
 
     out.uv = uv * out.invW;
     Vec4f world = uniforms.model * Vec4f(localPos);
-    out.worldPos = Vec3f(world.x(), world.y(), world.z()) * out.invW;
+    const Vec3f trueWorldPos = Vec3f(world.x(), world.y(), world.z());
+    out.worldPos = trueWorldPos * out.invW;
 
-    out.normal = (uniforms.normalMatrix * normal).normalize() * out.invW;
+    const Vec3f trueNormal = (uniforms.normalMatrix * normal).normalize();
+    out.normal = trueNormal * out.invW;
     out.tangent = (uniforms.normalMatrix * tangent).normalize() * out.invW;
     out.bitangent = (uniforms.normalMatrix * bitangent).normalize() * out.invW;
+
+    // Gouraud shading computes lighting once per vertex, right here, then
+    // lets the rasterizer interpolate the resulting color same as any other
+    // varying. Phong and Flat both skip this and light per pixel instead
+    // (see fragment()), so this stays zero and unused for them.
+    if (shadingMode == ShadingMode::Gouraud) {
+        const float vertexShadow = calculateShadowFactor(trueWorldPos, trueNormal);
+        Vec3f vertexDiffuse, vertexSpecular;
+        calculateLighting(trueNormal, trueWorldPos, uv, vertexShadow, vertexDiffuse, vertexSpecular);
+        out.vertexDiffuse = vertexDiffuse * out.invW;
+        out.vertexSpecular = vertexSpecular * out.invW;
+    }
 
     return out;
 }
@@ -65,20 +96,27 @@ bool PhongShader::fragment(Varyings &varyings, TGAColor &color)
     const Vec2f uv = varyings.uv * w;
     const Vec3f worldPos = varyings.worldPos * w;
 
+    Vec3f N = varyings.normal.normalize();
 
-    Vec3f N;
-    if (useNormalMap) {
-        const Vec3f interpN = varyings.normal.normalize();
-        const Vec3f T = varyings.tangent.normalize();
-        const Vec3f B = varyings.bitangent.normalize();
-        N = calculateNormal(uv, T, B, interpN);
-    } else {
-        N = varyings.normal.normalize();
-    }
     varyings.normalForBuffer = N;
-    const float shadowFactor = calculateShadowFactor(worldPos);
-    float diffuseIntensity, specIntensity;
-    calculateLighting(N, worldPos, uv, shadowFactor, diffuseIntensity, specIntensity);
+    varyings.distanceForBuffer = (worldPos - uniforms.cameraPos).length();
+
+    Vec3f diffuseLight, specularLight;
+    if (shadingMode == ShadingMode::Gouraud) {
+        diffuseLight = varyings.vertexDiffuse * w;
+        specularLight = varyings.vertexSpecular * w;
+    } else {
+        const float shadowFactor = calculateShadowFactor(worldPos, N);
+
+        Vec3f shadingNormal = N;
+        if (useNormalMap && normalMap.width() > 0) {
+            const Vec3f T = varyings.tangent.normalize();
+            const Vec3f B = varyings.bitangent.normalize();
+            shadingNormal = calculateNormal(uv, T, B, N);
+        }
+
+        calculateLighting(shadingNormal, worldPos, uv, shadowFactor, diffuseLight, specularLight);
+    }
 
     TGAColor texColor;
     if (useDiffuse) {
@@ -90,18 +128,51 @@ bool PhongShader::fragment(Varyings &varyings, TGAColor &color)
         texColor = {255, 255, 255, 255};
     }
 
-    const float totalIntensity = ambient + diffuseIntensity + specIntensity;
+    // Non-uniform material UV gradient blend
+    const Vec3f effectiveDiffuseColor = material.useNonUniformMaterial
+        ? material.diffuseColor + (material.diffuseColorSecondary - material.diffuseColor) * uv.x()
+        : material.diffuseColor;
 
-    color[2] = static_cast<unsigned char>(std::min(255.0f, texColor[2] * totalIntensity * uniforms.lightColor[0]));
-    color[1] = static_cast<unsigned char>(std::min(255.0f, texColor[1] * totalIntensity * uniforms.lightColor[1]));
-    color[0] = static_cast<unsigned char>(std::min(255.0f, texColor[0] * totalIntensity * uniforms.lightColor[2]));
+    // Lighting combination (TGAColor is stored BGR -> channels: 2/1/0 = R/G/B)
+    for (int c = 0; c < 3; ++c) {
+        const float texChannel = texColor[2 - c] / GraphicsUtils::MAX_COLOR_F;
+        const float ambientTerm = uniforms.ambientLight[c] * effectiveDiffuseColor[c] * texChannel;
+        const float diffuseTerm = diffuseLight[c] * effectiveDiffuseColor[c] * texChannel;
+        const float specularTerm = specularLight[c] * material.specularColor[c];
+        const float emissiveTerm = material.emissive[c];
+
+        const float total = ambientTerm + diffuseTerm + specularTerm + emissiveTerm;
+        color[2 - c] = static_cast<unsigned char>(std::min(255.0f, total * GraphicsUtils::MAX_COLOR_F));
+    }
+
+    const bool diffuseHasAlpha = useDiffuse && texColor.bytespp == TGAImage::RGBA;
+    const float texAlpha = diffuseHasAlpha ? texColor[3] / GraphicsUtils::MAX_COLOR_F : 1.0f;
+    const float alpha = useBlending
+        ? std::max(0.0f, std::min(1.0f, material.opacity * texAlpha))
+        : 1.0f;
+    color[3] = static_cast<unsigned char>(alpha * GraphicsUtils::MAX_COLOR_F);
+
+    // Distance-based fog applied last
+    if (uniforms.useFog) {
+        const float distance = (worldPos - uniforms.cameraPos).length();
+        const float range = uniforms.fogEnd - uniforms.fogStart;
+        const float fogFactor = range > 0.0f
+            ? std::max(0.0f, std::min(1.0f, (uniforms.fogEnd - distance) / range))
+            : 1.0f;
+
+        for (int c = 0; c < 3; ++c) {
+            const float litValue = color[2 - c] / GraphicsUtils::MAX_COLOR_F;
+            const float fogged = uniforms.fogColor[c] * (1.0f - fogFactor) + litValue * fogFactor;
+            color[2 - c] = static_cast<unsigned char>(std::min(255.0f, fogged * GraphicsUtils::MAX_COLOR_F));
+        }
+    }
 
     return useAlphaTest ? texColor[3] < alphaTestLimit : false;
 }
 
-float PhongShader::calculateShadowFactor(const Vec3f& worldPos) const
+float PhongShader::calculateShadowFactor(const Vec3f& worldPos, const Vec3f& normal) const
 {
-    if (!uniforms.shadowMap) return 1.0f;
+    if (!uniforms.shadowMap || !uniforms.lights || uniforms.lights->empty()) return 1.0f;
 
     Vec4f lightClip = uniforms.lightProjView * Vec4f(worldPos);
     Vec3f lightNDC = Vec3f(lightClip.x(), lightClip.y(), lightClip.z()) / lightClip.w();
@@ -109,6 +180,12 @@ float PhongShader::calculateShadowFactor(const Vec3f& worldPos) const
     const float scX = (lightNDC.x() + 1.0f) * 0.5f * uniforms.shadowWidth;
     const float scY = (lightNDC.y() + 1.0f) * 0.5f * uniforms.shadowHeight;
     const float currentDepth = (lightNDC.z() + 1.0f) * 0.5f;
+
+    // The shadow map is only built from light 0, see Renderer.cpp, so the
+    // slope-scaled bias below has to match that same light's direction.
+    const Vec3f L = directionToLight(uniforms.lights->front(), worldPos);
+    const float dotNL = std::max(0.0f, dotProduct(normal, L));
+    const float bias = std::max(minBias, maxBias * (1.0f - dotNL));
 
     float shadowSum = 0.0f;
     int sampleCount = 0;
@@ -123,7 +200,15 @@ float PhongShader::calculateShadowFactor(const Vec3f& worldPos) const
                 const int idx = sampleX + sampleY * uniforms.shadowWidth;
                 const float closestDepth = (*uniforms.shadowMap)[idx];
 
-                shadowSum += (currentDepth < closestDepth - bias) ? 0.0f : 1.0f;
+                if (currentDepth < closestDepth - bias) {
+                    // Occluded: contribution scales with the caster's opacity (1 = fully dark, 0 = no shadow).
+                    const float casterOpacity = uniforms.shadowCasterOpacity
+                        ? (*uniforms.shadowCasterOpacity)[idx]
+                        : 1.0f;
+                    shadowSum += 1.0f - casterOpacity;
+                } else {
+                    shadowSum += 1.0f;
+                }
                 sampleCount++;
             }
         }
@@ -153,29 +238,51 @@ void PhongShader::calculateLighting(const Vec3f& normal,
                                     const Vec3f& worldPos,
                                     const Vec2f& uv,
                                     const float shadowFactor,
-                                    float& outDiffuse,
-                                    float& outSpec) const
+                                    Vec3f& outDiffuse,
+                                    Vec3f& outSpecular) const
 {
-    constexpr float lightFormulaPower = 10.0f;
+    outDiffuse = {0, 0, 0};
+    outSpecular = {0, 0, 0};
 
-    const Vec3f L = uniforms.lightDir.normalize();
+    if (!uniforms.lights) return;
+
     const Vec3f V = (uniforms.cameraPos - worldPos).normalize();
 
-    const float dotNL = dotProduct(normal, L);
-    outDiffuse = std::max(0.0f, dotNL) * shadowFactor;
-
+    TGAColor specData;
     if (useSpecularMap) {
-        constexpr float lightFormulaPower = 10.0f;
-        const Vec3f V = (uniforms.cameraPos - worldPos).normalize();
-        Vec3f R = (normal * (2.0f * dotNL)) - L;
-        R = R.normalize();
-
-        TGAColor specData = specularMap.get(
+        specData = specularMap.get(
             static_cast<int>(uv.x() * specularMap.width()),
             static_cast<int>(uv.y() * specularMap.height())
         );
-        outSpec = std::pow(std::max(0.0f, dotProduct(R, V)), lightFormulaPower) * (specData[0] / GraphicsUtils::MAX_COLOR_F) * shadowFactor;
-    } else {
-        outSpec = 0.0f;
+    }
+
+    for (size_t i = 0; i < uniforms.lights->size(); ++i) {
+        const Light& light = (*uniforms.lights)[i];
+
+        // Only light 0 has a shadow map built for it,
+        // so every other light ignores occluders.
+        const float lightShadow = (i == 0) ? shadowFactor : 1.0f;
+
+        const Vec3f L = directionToLight(light, worldPos);
+        const float dotNL = dotProduct(normal, L);
+        const float diffuseAmount = std::max(0.0f, dotNL) * lightShadow * light.intensity;
+
+        for (int c = 0; c < 3; ++c) {
+            outDiffuse[c] += diffuseAmount * light.color[c];
+        }
+
+        if (useSpecularMap) {
+            constexpr float lightFormulaPower = 10.0f;
+
+            Vec3f R = (normal * (2.0f * dotNL)) - L;
+            R = R.normalize();
+            // specData[0] is Blue, but since specular maps are grayscale all channels match
+            const float specAmount = std::pow(std::max(0.0f, dotProduct(R, V)), lightFormulaPower)
+                                      * (specData[0] / GraphicsUtils::MAX_COLOR_F) * lightShadow * light.intensity;
+
+            for (int c = 0; c < 3; ++c) {
+                outSpecular[c] += specAmount * light.color[c];
+            }
+        }
     }
 }

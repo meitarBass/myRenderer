@@ -131,13 +131,31 @@ public:
         return res;
     }
 
-    static Matrix<float, 4, 4> projection(const float cameraDist) {
-        // Perspective Projection
+    static Matrix<float, 4, 4> projection(const float cameraDist, const float aspect = 1.0f) {
+        // aspect defaults to 1 so old call sites (e.g. the always-square shadow pass) don't change.
         auto res = Matrix<float, 4, 4>::identity();
+        res[0][0] = 1.0f / aspect;
         res[2][3] = -1.f / cameraDist;
         return res;
     }
 
+    // Near/far map to NDC z = +1/-1 here, the reverse of textbook OpenGL --
+    // matches this renderer's "larger z = closer" convention everywhere else.
+    // Get that backwards and depth testing silently inverts.
+    static Matrix<float, 4, 4> orthographic(const float halfWidth,
+                                            const float halfHeight,
+                                            const float near,
+                                            const float far)
+    {
+        auto res = Matrix<float, 4, 4>::identity();
+        res[0][0] = 1.0f / halfWidth;
+        res[1][1] = 1.0f / halfHeight;
+        res[2][2] = 2.0f / (far - near);
+        res[3][2] = (far + near) / (far - near);
+        return res;
+    }
+
+    // Same near/far flip as orthographic() above, same reason.
     static Matrix<float, 4, 4> perspective(const float fov,
                                            const float aspect,
                                            const float near,
@@ -149,9 +167,9 @@ public:
 
         res[0][0] = f / aspect;
         res[1][1] = f;
-        res[2][2] = (far + near) / (near - far);
+        res[2][2] = (far + near) / (far - near);
         res[2][3] = -1.0f;
-        res[3][2] = (2.0f * far * near) / (near - far);
+        res[3][2] = (2.0f * far * near) / (far - near);
 
         return res;
     }

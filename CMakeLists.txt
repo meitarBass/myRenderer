@@ -20,6 +20,10 @@ include_directories(
 add_executable(Renderer
         src/IO/tgaimage.cpp
         src/IO/ModelLoader.cpp
+        src/Core/BVH.h
+        src/Core/BVH.cpp
+        src/IO/SceneIO.h
+        src/IO/SceneIO.cpp
         src/Core/Rasterizer.cpp
         main.cpp
         tests/RendererUnitTests.h
